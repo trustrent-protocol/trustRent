@@ -38,9 +38,9 @@ Decentralized arbitration voting. A panel of arbitrators votes on a deposit spli
 # Install Stellar CLI
 cargo install --locked stellar-cli --features opt
 
-# Build contracts
+# Build contracts (requires wasm32v1-none target)
 cd contracts
-cargo build --target wasm32-unknown-unknown --release
+cargo build --target wasm32v1-none --release
 
 # Run tests
 cargo test
@@ -50,7 +50,7 @@ cargo test
 
 ```bash
 stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/trustrent_escrow.wasm \
+  --wasm target/wasm32v1-none/release/trustrent_escrow.wasm \
   --source <your-secret-key> \
   --network testnet
 ```
