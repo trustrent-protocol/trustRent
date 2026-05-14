@@ -16,6 +16,9 @@ router.post('/',
   async (req, res, next) => {
     try {
       const { lease_id, amount, asset = 'USDC', memo, tenant_secret_key } = req.body;
+      // TODO: secret key should never travel over the wire in production.
+      // This will be replaced by a client-side signing flow (WalletConnect / Freighter)
+      // or a server-side signing service in v0.2.
 
       const { rows } = await Lease.findById(lease_id);
       const lease = rows[0];

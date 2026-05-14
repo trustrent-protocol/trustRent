@@ -14,6 +14,8 @@ router.post('/',
   async (req, res, next) => {
     try {
       const { lease_id, funding_secret_key } = req.body;
+      // TODO: secret key should never travel over the wire in production.
+      // Will be replaced by a signing service in v0.2.
       const { rows } = await Lease.findById(lease_id);
       const lease = rows[0];
       if (!lease) return res.status(404).json({ error: 'Lease not found' });
