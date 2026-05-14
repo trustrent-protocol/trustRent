@@ -225,6 +225,9 @@ WEBHOOK_URL=https://your-app.com/webhooks/trustrent
 ### Running Locally
 
 ```bash
+# Run database migrations
+npm run migrate
+
 # Start the API server
 npm run dev
 
@@ -242,7 +245,11 @@ npm run test:testnet
 
 ## Smart Contracts
 
-trustRent uses **Stellar's native primitives** — not Soroban smart contracts — for maximum compatibility and simplicity at the current stage. The escrow logic is enforced by multi-signature account configuration.
+trustRent uses **Stellar's native primitives** for the current production escrow, with **Soroban smart contracts** implemented and tested for the v0.4 migration.
+
+### Native Escrow (current)
+
+The production escrow logic is enforced by multi-signature account configuration (`src/stellar/escrow.js`).
 
 ### Escrow Account Structure
 
@@ -274,13 +281,14 @@ Escrow Account
 | `ACCOUNT_MERGE` | Release escrow at lease-end |
 | `CLAWBACK` | Landlord reclaims deposit on proven damage |
 
-### Soroban Roadmap
+### Soroban Contracts (implemented, v0.4 migration)
 
-The `contracts/` directory contains experimental Soroban (Stellar smart contract) implementations for:
+The `contracts/` directory contains Soroban smart contract implementations for:
 
-- Automated late-fee calculation
-- Scheduled recurring payments
-- Decentralized arbitration voting
+- Escrow deposit lifecycle (release, split, dispute, arbitrate, clawback) — **✅ implemented & tested**
+- Decentralized arbitration voting (panel quorum) — **✅ implemented & tested**
+- Automated late-fee calculation — planned
+- Scheduled recurring payments — planned
 
 See [`contracts/README.md`](./contracts/README.md) for current status.
 
@@ -313,7 +321,7 @@ POST   /api/v1/escrow/:leaseId/dispute    Open a dispute
 ```http
 POST   /api/v1/payments            Submit a rent payment
 GET    /api/v1/payments/:leaseId   Get full payment history for a lease
-GET    /api/v1/payments/:txHash    Get a single payment receipt
+GET    /api/v1/payments/receipt/:txHash    Get a single payment receipt
 ```
 
 ### Example: Submit a Rent Payment
@@ -369,19 +377,19 @@ trustrent/
 │   └── db/               # PostgreSQL models & migrations
 │       ├── models/
 │       └── migrations/
-├── contracts/            # Soroban smart contracts (experimental)
-│   ├── escrow/
-│   └── arbitration/
-├── sdk/                  # trustRent client SDK (published to npm)
-│   └── src/
+├── contracts/            # Soroban smart contracts
+│   ├── escrow/           # Deposit lifecycle contract (✅ implemented)
+│   └── arbitration/      # Panel voting contract (✅ implemented)
 ├── docs/                 # Extended documentation
 │   ├── api.md
 │   ├── architecture.md
 │   └── emerging-markets.md
-├── scripts/              # Dev & deployment utilities
-└── tests/
-    ├── unit/
-    └── integration/
+├── tests/
+│   ├── unit/
+│   └── integration/
+├── CONTRIBUTING.md
+├── CHANGELOG.md
+└── SECURITY.md
 ```
 
 ---
@@ -432,9 +440,10 @@ We aim to acknowledge reports within 24 hours and patch critical issues within 7
 - [ ] Tenant pays in local currency → landlord receives USDC
 
 ### v0.4 — Soroban Contracts
-- [ ] Migrate escrow to Soroban for richer programmability
+- [x] Soroban escrow contract (release, split, dispute, arbitrate, clawback)
+- [x] Decentralized arbitration voting (panel quorum)
 - [ ] Automated late-fee calculation
-- [ ] Decentralized arbitration voting (community-governed)
+- [ ] Scheduled recurring payments
 
 ### v1.0 — Production
 - [ ] Mobile SDK (React Native)
