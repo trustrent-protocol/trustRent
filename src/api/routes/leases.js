@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
 const auth = require('../middleware/auth');
+const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const Lease = require('../../db/models/lease');
 
@@ -29,25 +30,22 @@ router.post('/',
 );
 
 // GET /api/v1/leases/:id
-router.get('/:id', auth, async (req, res, next) => {
-  try {
-    const { rows } = await Lease.findById(req.params.id);
-    if (!rows[0]) return res.status(404).json({ error: 'Lease not found' });
-    res.json(rows[0]);
-  } catch (err) {
-    next(err);
-  }
+router.get('/:id', auth, authorizeLease, (req, res) => {
+  res.json(req.lease);
 });
 
 // PATCH /api/v1/leases/:id
 router.patch('/:id',
   auth,
+  authorizeLease,
   body('status').isIn(['pending', 'active', 'ended', 'cancelled']),
   validate,
   async (req, res, next) => {
     try {
-      const { rows } = await Lease.updateStatus(req.params.id, req.body.status);
-      if (!rows[0]) return res.status(404).json({ error: 'Lease not found' });
+      if (String(req.lease.landlord_id) !== String(req.user.id)) {
+        return res.status(403).json({ error: 'Only the landlord can change lease status' });
+      }
+      const { rows } = await Lease.updateStatus(req.lease.id, req.body.status);
       res.json(rows[0]);
     } catch (err) {
       next(err);
@@ -56,14 +54,15 @@ router.patch('/:id',
 );
 
 // DELETE /api/v1/leases/:id  (pre-activation only)
-router.delete('/:id', auth, async (req, res, next) => {
+router.delete('/:id', auth, authorizeLease, async (req, res, next) => {
   try {
-    const { rows: existing } = await Lease.findById(req.params.id);
-    if (!existing[0]) return res.status(404).json({ error: 'Lease not found' });
-    if (existing[0].status !== 'pending') {
+    if (String(req.lease.landlord_id) !== String(req.user.id)) {
+      return res.status(403).json({ error: 'Only the landlord can cancel a lease' });
+    }
+    if (req.lease.status !== 'pending') {
       return res.status(409).json({ error: 'Only pending leases can be cancelled' });
     }
-    const { rows } = await Lease.cancel(req.params.id);
+    const { rows } = await Lease.cancel(req.lease.id);
     res.json(rows[0]);
   } catch (err) {
     next(err);

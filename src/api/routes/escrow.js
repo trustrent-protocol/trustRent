@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
 const auth = require('../middleware/auth');
+const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const Lease = require('../../db/models/lease');
 const { createEscrow } = require('../../stellar/escrow');
@@ -8,6 +9,7 @@ const { createEscrow } = require('../../stellar/escrow');
 // POST /api/v1/escrow  — create escrow account for a lease
 router.post('/',
   auth,
+  authorizeLease,
   body('lease_id').isUUID(),
   body('funding_secret_key').notEmpty(),
   validate,
@@ -16,9 +18,10 @@ router.post('/',
       const { lease_id, funding_secret_key } = req.body;
       // TODO: secret key should never travel over the wire in production.
       // Will be replaced by a signing service in v0.2.
-      const { rows } = await Lease.findById(lease_id);
-      const lease = rows[0];
-      if (!lease) return res.status(404).json({ error: 'Lease not found' });
+      const lease = req.lease;
+      if (String(lease.landlord_id) !== String(req.user.id)) {
+        return res.status(403).json({ error: 'Only the landlord can fund an escrow' });
+      }
       if (lease.escrow_account_pk) {
         return res.status(409).json({ error: 'Escrow already exists for this lease' });
       }
@@ -50,11 +53,9 @@ router.post('/',
 );
 
 // GET /api/v1/escrow/:leaseId
-router.get('/:leaseId', auth, async (req, res, next) => {
+router.get('/:leaseId', auth, authorizeLease, async (req, res, next) => {
   try {
-    const { rows } = await Lease.findById(req.params.leaseId);
-    const lease = rows[0];
-    if (!lease) return res.status(404).json({ error: 'Lease not found' });
+    const lease = req.lease;
     if (!lease.escrow_account_pk) {
       return res.status(404).json({ error: 'No escrow account for this lease' });
     }

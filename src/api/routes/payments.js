@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
 const auth = require('../middleware/auth');
+const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const Payment = require('../../db/models/payment');
 const Lease = require('../../db/models/lease');
@@ -9,6 +10,7 @@ const { submitRentPayment } = require('../../stellar/payments');
 // POST /api/v1/payments
 router.post('/',
   auth,
+  authorizeLease,
   body('lease_id').isUUID(),
   body('amount').isNumeric(),
   body('asset').optional().equals('USDC'),
@@ -20,11 +22,12 @@ router.post('/',
       // This will be replaced by a client-side signing flow (WalletConnect / Freighter)
       // or a server-side signing service in v0.2.
 
-      const { rows } = await Lease.findById(lease_id);
-      const lease = rows[0];
-      if (!lease) return res.status(404).json({ error: 'Lease not found' });
+      const lease = req.lease;
       if (lease.status !== 'active') {
         return res.status(409).json({ error: 'Lease is not active' });
+      }
+      if (String(lease.tenant_id) !== String(req.user.id)) {
+        return res.status(403).json({ error: 'Only the tenant can submit payments' });
       }
 
       const pool = require('../../db/pool');
@@ -71,8 +74,19 @@ router.post('/',
 // GET /api/v1/payments/:leaseId
 router.get('/:leaseId', auth, async (req, res, next) => {
   try {
-    const { rows } = await Payment.findByLease(req.params.leaseId);
-    res.json(rows);
+    const { rows } = await Lease.findById(req.params.leaseId);
+    const lease = rows[0];
+    if (!lease) return res.status(404).json({ error: 'Lease not found' });
+
+    const involved = [lease.landlord_id, lease.tenant_id, lease.agent_id]
+      .filter(Boolean)
+      .map(String);
+    if (!involved.includes(String(req.user.id))) {
+      return res.status(403).json({ error: 'You are not a party to this lease' });
+    }
+
+    const { rows: payments } = await Payment.findByLease(req.params.leaseId);
+    res.json(payments);
   } catch (err) {
     next(err);
   }
@@ -82,8 +96,21 @@ router.get('/:leaseId', auth, async (req, res, next) => {
 router.get('/receipt/:txHash', auth, async (req, res, next) => {
   try {
     const { rows } = await Payment.findByTxHash(req.params.txHash);
-    if (!rows[0]) return res.status(404).json({ error: 'Payment not found' });
-    res.json(rows[0]);
+    const payment = rows[0];
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    const { rows: leases } = await Lease.findById(payment.lease_id);
+    const lease = leases[0];
+    if (!lease) return res.status(404).json({ error: 'Payment not found' });
+
+    const involved = [lease.landlord_id, lease.tenant_id, lease.agent_id]
+      .filter(Boolean)
+      .map(String);
+    if (!involved.includes(String(req.user.id))) {
+      return res.status(403).json({ error: 'You are not a party to this lease' });
+    }
+
+    res.json(payment);
   } catch (err) {
     next(err);
   }
