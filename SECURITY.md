@@ -11,7 +11,7 @@
 trustRent handles real money. Please **do not** open a public GitHub issue for security vulnerabilities.
 
 **Email:** `security@trustrent.xyz`  
-**PGP Key:** `docs/security/pgp-key.asc`
+**PGP Key:** Published on release tags and our keyserver (`hkps://keys.openpgp.org`, uid `security@trustrent.xyz`)
 
 We aim to acknowledge reports within **24 hours** and patch critical issues within **72 hours**.
 

@@ -5,6 +5,7 @@ const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const Lease = require('../../db/models/lease');
 const { createEscrow } = require('../../stellar/escrow');
+const { notifyLeaseActivated } = require('../../services/notifications');
 
 // POST /api/v1/escrow  — create escrow account for a lease
 router.post('/',
@@ -44,6 +45,7 @@ router.post('/',
 
       await Lease.setEscrowAccount(lease_id, escrowPublicKey);
       await Lease.updateStatus(lease_id, 'active');
+      notifyLeaseActivated({ leaseId: lease_id });
 
       res.status(201).json({ escrow_account_pk: escrowPublicKey, tx_hash: txHash });
     } catch (err) {

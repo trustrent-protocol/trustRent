@@ -3,7 +3,6 @@ const {
   TransactionBuilder,
   Operation,
   BASE_FEE,
-  AuthClawbackEnabledFlag,
 } = require('@stellar/stellar-sdk');
 const { server, networkPassphrase, getUSDC } = require('./client');
 

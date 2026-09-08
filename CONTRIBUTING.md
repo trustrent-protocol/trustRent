@@ -70,7 +70,7 @@ See `contracts/README.md` for contract-specific details.
 
 Do **not** open public issues for security vulnerabilities.  
 Email: `security@trustrent.xyz`  
-See `docs/security/pgp-key.asc` for PGP key.
+PGP key published on release tags and `hkps://keys.openpgp.org`.
 
 ## Areas We Need Help
 

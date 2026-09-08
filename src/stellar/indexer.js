@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { server } = require('./client');
 const pool = require('../db/pool');
+const { notifyPaymentConfirmed } = require('../services/notifications');
 
 const TRUSTRENT_MEMO_PREFIX = 'trustrent:';
 
@@ -60,6 +61,11 @@ function watchAccount(leaseId, accountId) {
             ]
           );
           console.log(`Indexed payment ${payment.transaction_hash} for lease ${leaseId}`);
+          notifyPaymentConfirmed({
+            leaseId,
+            txHash: payment.transaction_hash,
+            amount: payment.amount,
+          });
         } catch (err) {
           console.error('Indexer error:', err.message);
         }

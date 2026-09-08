@@ -7,6 +7,7 @@ const { money } = require('../validators/money');
 const Payment = require('../../db/models/payment');
 const Lease = require('../../db/models/lease');
 const { submitRentPayment } = require('../../stellar/payments');
+const { notifyPaymentConfirmed } = require('../../services/notifications');
 
 // POST /api/v1/payments
 router.post('/',
@@ -57,6 +58,12 @@ router.post('/',
         result.splits,
         result.settledAt
       );
+
+      notifyPaymentConfirmed({
+        leaseId: lease_id,
+        txHash: result.txHash,
+        amount,
+      });
 
       res.status(201).json({
         id: confirmed.id,
