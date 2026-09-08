@@ -1,31 +1,48 @@
 /**
  * Payment splitting logic unit tests.
- * Tests the split calculation without hitting Stellar testnet.
+ * Exercises the real calculateSplits exported from src/stellar/payments.js
+ * (integer-unit math, no network access required).
  */
 
-function calculateSplits(amount, agentFeePct) {
-  const total = parseFloat(amount);
-  const agentAmount = ((agentFeePct / 100) * total).toFixed(7);
-  const landlordAmount = (total - parseFloat(agentAmount)).toFixed(7);
-  return { landlordAmount, agentAmount };
-}
+const { calculateSplits } = require('../../src/stellar/payments');
 
 describe('payment splitting', () => {
   test('7% agent fee on 500 USDC', () => {
-    const { landlordAmount, agentAmount } = calculateSplits('500', 7);
-    expect(parseFloat(landlordAmount)).toBeCloseTo(465, 2);
-    expect(parseFloat(agentAmount)).toBeCloseTo(35, 2);
+    const { landlord, agent } = calculateSplits('500', 7);
+    expect(parseFloat(landlord)).toBeCloseTo(465, 5);
+    expect(parseFloat(agent)).toBeCloseTo(35, 5);
   });
 
   test('0% agent fee sends full amount to landlord', () => {
-    const { landlordAmount, agentAmount } = calculateSplits('500', 0);
-    expect(parseFloat(landlordAmount)).toBe(500);
-    expect(parseFloat(agentAmount)).toBe(0);
+    const { landlord, agent } = calculateSplits('500', 0);
+    expect(parseFloat(landlord)).toBe(500);
+    expect(parseFloat(agent)).toBe(0);
   });
 
-  test('splits sum to total', () => {
-    const { landlordAmount, agentAmount } = calculateSplits('750', 10);
-    const sum = parseFloat(landlordAmount) + parseFloat(agentAmount);
-    expect(sum).toBeCloseTo(750, 5);
+  test('100% agent fee sends full amount to agent', () => {
+    const { landlord, agent } = calculateSplits('500', 100);
+    expect(parseFloat(landlord)).toBe(0);
+    expect(parseFloat(agent)).toBe(500);
+  });
+
+  test('splits always sum exactly to total (no float drift)', () => {
+    for (const [amount, pct] of [
+      ['750', 10],
+      ['499.99', 33],
+      ['0.01', 5],
+      ['12345.6789', 7.5],
+    ]) {
+      const { landlord, agent } = calculateSplits(amount, pct);
+      const sum = parseFloat(landlord) + parseFloat(agent);
+      expect(sum).toBeCloseTo(parseFloat(amount), 7);
+      expect(landlord).toMatch(/^\d+\.\d{7}$/);
+      expect(agent).toMatch(/^\d+\.\d{7}$/);
+    }
+  });
+
+  test('outputs are 7-decimal strings, never floats', () => {
+    const { landlord, agent } = calculateSplits('500.25', 7);
+    expect(typeof landlord).toBe('string');
+    expect(typeof agent).toBe('string');
   });
 });
