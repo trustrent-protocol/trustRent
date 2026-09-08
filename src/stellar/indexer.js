@@ -55,7 +55,7 @@ function watchAccount(leaseId, accountId) {
               leaseId,
               payment.amount,
               payment.transaction_hash,
-              payment.paging_token,
+              payment.ledger, // actual ledger sequence number
               payment.created_at,
             ]
           );

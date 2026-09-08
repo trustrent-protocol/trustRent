@@ -2,11 +2,10 @@ const {
   Keypair,
   TransactionBuilder,
   Operation,
-  Asset,
   BASE_FEE,
   AuthClawbackEnabledFlag,
 } = require('@stellar/stellar-sdk');
-const { server, networkPassphrase } = require('./client');
+const { server, networkPassphrase, getUSDC } = require('./client');
 
 /**
  * Create a multi-sig escrow account for a lease deposit.
@@ -32,12 +31,7 @@ async function createEscrow({
   const fundingKeypair = Keypair.fromSecret(fundingSecretKey);
   const fundingAccount = await server.loadAccount(fundingKeypair.publicKey());
 
-  const USDC = new Asset(
-    'USDC',
-    isTestnet()
-      ? 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5'
-      : 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN'
-  );
+  const USDC = getUSDC();
 
   const tx = new TransactionBuilder(fundingAccount, {
     fee: BASE_FEE,
@@ -103,10 +97,6 @@ async function createEscrow({
     escrowPublicKey: escrowKeypair.publicKey(),
     txHash: result.hash,
   };
-}
-
-function isTestnet() {
-  return process.env.STELLAR_NETWORK !== 'mainnet';
 }
 
 module.exports = { createEscrow };

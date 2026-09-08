@@ -2,21 +2,10 @@ const {
   Keypair,
   TransactionBuilder,
   Operation,
-  Asset,
   BASE_FEE,
   Memo,
 } = require('@stellar/stellar-sdk');
-const { server, networkPassphrase } = require('./client');
-
-const USDC_ISSUER_TESTNET = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
-const USDC_ISSUER_MAINNET = 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
-
-function getUSDC() {
-  const issuer = process.env.STELLAR_NETWORK === 'mainnet'
-    ? USDC_ISSUER_MAINNET
-    : USDC_ISSUER_TESTNET;
-  return new Asset('USDC', issuer);
-}
+const { server, networkPassphrase, getUSDC } = require('./client');
 
 /**
  * Submit a rent payment, splitting agent commission if applicable.
