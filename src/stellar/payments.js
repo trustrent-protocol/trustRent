@@ -8,6 +8,23 @@ const {
 const { server, networkPassphrase, getUSDC } = require('./client');
 
 /**
+ * Split an amount string into integer units (7 decimal places, Stellar's
+ * maximum precision) to avoid floating-point drift.
+ * @param {string} amount     e.g. "500.00"
+ * @param {number} agentFeePct e.g. 7 for 7%
+ * @returns {{ landlord: string, agent: string }} split amounts as strings
+ */
+function calculateSplits(amount, agentFeePct) {
+  const totalUnits = Math.round(parseFloat(amount) * 1e7);
+  const agentUnits = Math.round(totalUnits * (agentFeePct / 100));
+  const landlordUnits = totalUnits - agentUnits;
+  return {
+    landlord: (landlordUnits / 1e7).toFixed(7),
+    agent: (agentUnits / 1e7).toFixed(7),
+  };
+}
+
+/**
  * Submit a rent payment, splitting agent commission if applicable.
  *
  * @param {object} opts
@@ -31,13 +48,9 @@ async function submitRentPayment({
   const tenantAccount = await server.loadAccount(tenantKeypair.publicKey());
   const USDC = getUSDC();
 
-  const total = parseFloat(amount);
-  const agentAmount = agentPublicKey
-    ? ((agentFeePct / 100) * total).toFixed(7)
-    : '0';
-  const landlordAmount = agentPublicKey
-    ? (total - parseFloat(agentAmount)).toFixed(7)
-    : total.toFixed(7);
+  const { landlord, agent } = calculateSplits(amount, agentFeePct);
+  const agentAmount = agentPublicKey && parseFloat(agent) > 0 ? agent : '0';
+  const landlordAmount = agentPublicKey ? landlord : amount;
 
   const builder = new TransactionBuilder(tenantAccount, {
     fee: BASE_FEE,
@@ -52,7 +65,7 @@ async function submitRentPayment({
     amount: landlordAmount,
   }));
 
-  if (agentPublicKey && parseFloat(agentAmount) > 0) {
+  if (agentAmount !== '0') {
     builder.addOperation(Operation.payment({
       destination: agentPublicKey,
       asset: USDC,
@@ -68,7 +81,7 @@ async function submitRentPayment({
   const splits = [
     { recipient: 'landlord', amount: landlordAmount, asset: 'USDC' },
   ];
-  if (agentPublicKey && parseFloat(agentAmount) > 0) {
+  if (agentAmount !== '0') {
     splits.push({ recipient: 'agent', amount: agentAmount, asset: 'USDC' });
   }
 
@@ -80,4 +93,4 @@ async function submitRentPayment({
   };
 }
 
-module.exports = { submitRentPayment };
+module.exports = { submitRentPayment, calculateSplits };

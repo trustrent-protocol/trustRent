@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const auth = require('../middleware/auth');
 const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
+const { money } = require('../validators/money');
 const Payment = require('../../db/models/payment');
 const Lease = require('../../db/models/lease');
 const { submitRentPayment } = require('../../stellar/payments');
@@ -12,7 +13,7 @@ router.post('/',
   auth,
   authorizeLease,
   body('lease_id').isUUID(),
-  body('amount').isNumeric(),
+  money('amount'),
   body('asset').optional().equals('USDC'),
   validate,
   async (req, res, next) => {

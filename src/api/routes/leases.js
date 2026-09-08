@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const auth = require('../middleware/auth');
 const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
+const { money, percentage } = require('../validators/money');
 const Lease = require('../../db/models/lease');
 
 // POST /api/v1/leases
@@ -10,10 +11,16 @@ router.post('/',
   auth,
   body('tenant_id').isUUID(),
   body('property_address').notEmpty(),
-  body('rent_amount').isNumeric(),
-  body('deposit_amount').isNumeric(),
+  money('rent_amount'),
+  money('deposit_amount'),
+  percentage('agent_fee_pct'),
   body('starts_at').isISO8601(),
-  body('ends_at').isISO8601(),
+  body('ends_at').isISO8601()
+    .custom((endsAt, { req }) => {
+      return new Date(endsAt) > new Date(req.body.starts_at)
+        ? true
+        : Promise.reject(new Error('ends_at must be after starts_at'));
+    }),
   body('duration_months').isInt({ min: 1 }),
   validate,
   async (req, res, next) => {
