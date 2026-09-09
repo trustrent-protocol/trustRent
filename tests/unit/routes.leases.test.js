@@ -15,6 +15,10 @@ function tokenFor(id = 'landlord-1') {
   return jwt.sign({ id, role: 'landlord' }, process.env.JWT_SECRET);
 }
 
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
 const leaseRow = {
   id: 'lease-1',
   landlord_id: 'landlord-1',
@@ -144,6 +148,38 @@ describe('PATCH /api/v1/leases/:id', () => {
       .send({ status: 'active' });
     expect(res.status).toBe(200);
     expect(Lease.updateStatus).toHaveBeenCalledWith('lease-1', 'active');
+  });
+
+  test('rejects illegal transition from cancelled to active', async () => {
+    Lease.findById.mockResolvedValue({
+      rows: [{ ...leaseRow, status: 'cancelled' }],
+    });
+    const res = await request(app)
+      .patch('/api/v1/leases/lease-1')
+      .set('Authorization', `Bearer ${tokenFor()}`)
+      .send({ status: 'active' });
+    expect(res.status).toBe(409);
+    expect(Lease.updateStatus).not.toHaveBeenCalled();
+  });
+
+  test('rejects direct skip from pending to ended', async () => {
+    Lease.findById.mockResolvedValue({ rows: [leaseRow] });
+    const res = await request(app)
+      .patch('/api/v1/leases/lease-1')
+      .set('Authorization', `Bearer ${tokenFor()}`)
+      .send({ status: 'ended' });
+    expect(res.status).toBe(409);
+    expect(Lease.updateStatus).not.toHaveBeenCalled();
+  });
+
+  test('rejects no-op transition to the same status', async () => {
+    Lease.findById.mockResolvedValue({ rows: [leaseRow] });
+    const res = await request(app)
+      .patch('/api/v1/leases/lease-1')
+      .set('Authorization', `Bearer ${tokenFor()}`)
+      .send({ status: 'pending' });
+    expect(res.status).toBe(409);
+    expect(Lease.updateStatus).not.toHaveBeenCalled();
   });
 
   test('forbids a tenant from changing status', async () => {

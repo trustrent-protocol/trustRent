@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const { money, percentage } = require('../validators/money');
+const { LEASE_STATUSES, assertTransition } = require('../../services/leaseState');
 const Lease = require('../../db/models/lease');
 
 // POST /api/v1/leases
@@ -48,13 +49,14 @@ router.patch(
   '/:id',
   auth,
   authorizeLease,
-  body('status').isIn(['pending', 'active', 'ended', 'cancelled']),
+  body('status').isIn(LEASE_STATUSES),
   validate,
   async (req, res, next) => {
     try {
       if (String(req.lease.landlord_id) !== String(req.user.id)) {
         return res.status(403).json({ error: 'Only the landlord can change lease status' });
       }
+      assertTransition(req.lease.status, req.body.status);
       const { rows } = await Lease.updateStatus(req.lease.id, req.body.status);
       res.json(rows[0]);
     } catch (err) {
@@ -69,9 +71,7 @@ router.delete('/:id', auth, authorizeLease, async (req, res, next) => {
     if (String(req.lease.landlord_id) !== String(req.user.id)) {
       return res.status(403).json({ error: 'Only the landlord can cancel a lease' });
     }
-    if (req.lease.status !== 'pending') {
-      return res.status(409).json({ error: 'Only pending leases can be cancelled' });
-    }
+    assertTransition(req.lease.status, 'cancelled');
     const { rows } = await Lease.cancel(req.lease.id);
     res.json(rows[0]);
   } catch (err) {
