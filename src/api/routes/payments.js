@@ -9,6 +9,23 @@ const Lease = require('../../db/models/lease');
 const { submitRentPayment } = require('../../stellar/payments');
 const { notifyPaymentConfirmed } = require('../../services/notifications');
 
+const IDEMPOTENCY_ERROR_CODE = '23505';
+
+function idempotencyConflict(res, existing) {
+  if (existing.status === 'confirmed') {
+    return res
+      .status(200)
+      .json({ id: existing.id, status: existing.status, txHash: existing.tx_hash });
+  }
+  const detail =
+    existing.status === 'pending'
+      ? 'A payment with this idempotency_key is already being submitted'
+      : 'A payment with this idempotency_key previously failed; use a fresh idempotency_key to retry';
+  return res
+    .status(409)
+    .json({ error: detail, existing: { id: existing.id, status: existing.status } });
+}
+
 // POST /api/v1/payments
 router.post(
   '/',
@@ -17,10 +34,22 @@ router.post(
   body('lease_id').isUUID(),
   money('amount'),
   body('asset').optional().equals('USDC'),
+  body('idempotency_key')
+    .optional()
+    .isString()
+    .isLength({ min: 1, max: 64 })
+    .matches(/^[A-Za-z0-9_-]+$/),
   validate,
   async (req, res, next) => {
     try {
-      const { lease_id, amount, asset = 'USDC', memo, tenant_secret_key } = req.body;
+      const {
+        lease_id,
+        amount,
+        asset = 'USDC',
+        memo,
+        tenant_secret_key,
+        idempotency_key = null,
+      } = req.body;
       // TODO: secret key should never travel over the wire in production.
       // This will be replaced by a client-side signing flow (WalletConnect / Freighter)
       // or a server-side signing service in v0.2.
@@ -33,6 +62,13 @@ router.post(
         return res.status(403).json({ error: 'Only the tenant can submit payments' });
       }
 
+      // Idempotent replay: the same logical payment (lease + key) must only
+      // ever submit to the ledger once, even if the client retries.
+      if (idempotency_key) {
+        const { rows } = await Payment.findByIdempotency(lease_id, idempotency_key);
+        if (rows[0]) return idempotencyConflict(res, rows[0]);
+      }
+
       const pool = require('../../db/pool');
       const { rows: users } = await pool.query(
         'SELECT id, stellar_pk FROM users WHERE id = ANY($1)',
@@ -41,18 +77,37 @@ router.post(
       const byId = Object.fromEntries(users.map((u) => [u.id, u.stellar_pk]));
 
       // Create pending payment record
-      const {
-        rows: [pending],
-      } = await Payment.create({ lease_id, amount, asset, memo });
+      let pending;
+      try {
+        const {
+          rows: [row],
+        } = await Payment.create({ lease_id, amount, asset, memo, idempotency_key });
+        pending = row;
+      } catch (err) {
+        // Lost a race against a concurrent request with the same key.
+        if (idempotency_key && err.code === IDEMPOTENCY_ERROR_CODE) {
+          const { rows } = await Payment.findByIdempotency(lease_id, idempotency_key);
+          return idempotencyConflict(res, rows[0]);
+        }
+        throw err;
+      }
 
-      const result = await submitRentPayment({
-        tenantSecretKey: tenant_secret_key,
-        landlordPublicKey: byId[lease.landlord_id],
-        agentPublicKey: lease.agent_id ? byId[lease.agent_id] : null,
-        amount,
-        agentFeePct: parseFloat(lease.agent_fee_pct) || 0,
-        memo,
-      });
+      let result;
+      try {
+        result = await submitRentPayment({
+          tenantSecretKey: tenant_secret_key,
+          landlordPublicKey: byId[lease.landlord_id],
+          agentPublicKey: lease.agent_id ? byId[lease.agent_id] : null,
+          amount,
+          agentFeePct: parseFloat(lease.agent_fee_pct) || 0,
+          memo,
+        });
+      } catch (err) {
+        // Never leave a payment stuck in 'pending': record the failure and
+        // let the client retry safely with a fresh idempotency_key.
+        await Payment.markFailed(pending.id, err.message);
+        throw err;
+      }
 
       const {
         rows: [confirmed],
