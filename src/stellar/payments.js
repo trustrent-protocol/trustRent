@@ -2,20 +2,40 @@ const { Keypair, TransactionBuilder, Operation, BASE_FEE, Memo } = require('@ste
 const { server, networkPassphrase, getUSDC } = require('./client');
 
 /**
+ * Parse a decimal money string into 1e7-scaled integer units without
+ * touching floating-point at all (pure string manipulation).
+ * e.g. "499.99" → 4999900000
+ */
+function parseToUnits(amount) {
+  const [whole = '0', frac = ''] = amount.split('.');
+  const padded = frac.padEnd(7, '0').slice(0, 7);
+  return BigInt(whole) * 10000000n + BigInt(padded);
+}
+
+/**
  * Split an amount string into integer units (7 decimal places, Stellar's
- * maximum precision) to avoid floating-point drift.
- * @param {string} amount     e.g. "500.00"
+ * maximum precision) using pure integer math — no parseFloat.
+ * @param {string} amount      e.g. "500.00"
  * @param {number} agentFeePct e.g. 7 for 7%
  * @returns {{ landlord: string, agent: string }} split amounts as strings
  */
 function calculateSplits(amount, agentFeePct) {
-  const totalUnits = Math.round(parseFloat(amount) * 1e7);
-  const agentUnits = Math.round(totalUnits * (agentFeePct / 100));
+  const totalUnits = parseToUnits(amount);
+  const feeBps = Math.round(agentFeePct * 100);
+  const agentUnits = (totalUnits * BigInt(feeBps)) / 10000n;
   const landlordUnits = totalUnits - agentUnits;
   return {
-    landlord: (landlordUnits / 1e7).toFixed(7),
-    agent: (agentUnits / 1e7).toFixed(7),
+    landlord: unitsToDecimal(landlordUnits),
+    agent: unitsToDecimal(agentUnits),
   };
+}
+
+/**
+ * Convert 1e7-scaled integer units back to a 7-decimal money string.
+ */
+function unitsToDecimal(units) {
+  const s = units.toString().padStart(8, '0');
+  return s.slice(0, -7) + '.' + s.slice(-7);
 }
 
 /**
@@ -43,7 +63,7 @@ async function submitRentPayment({
   const USDC = getUSDC();
 
   const { landlord, agent } = calculateSplits(amount, agentFeePct);
-  const agentAmount = agentPublicKey && parseFloat(agent) > 0 ? agent : '0';
+  const agentAmount = agentPublicKey && agent !== '0.0000000' ? agent : '0';
   const landlordAmount = agentPublicKey ? landlord : amount;
 
   const builder = new TransactionBuilder(tenantAccount, {
