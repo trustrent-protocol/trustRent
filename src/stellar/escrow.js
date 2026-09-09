@@ -1,9 +1,4 @@
-const {
-  Keypair,
-  TransactionBuilder,
-  Operation,
-  BASE_FEE,
-} = require('@stellar/stellar-sdk');
+const { Keypair, TransactionBuilder, Operation, BASE_FEE } = require('@stellar/stellar-sdk');
 const { server, networkPassphrase, getUSDC } = require('./client');
 
 /**
@@ -37,54 +32,72 @@ async function createEscrow({
     networkPassphrase,
   })
     // 1. Create the escrow account with minimum reserve
-    .addOperation(Operation.createAccount({
-      destination: escrowKeypair.publicKey(),
-      startingBalance: '2', // XLM reserve
-    }))
+    .addOperation(
+      Operation.createAccount({
+        destination: escrowKeypair.publicKey(),
+        startingBalance: '2', // XLM reserve
+      }),
+    )
     // 2. Add trustline for USDC (escrow account must sign)
-    .addOperation(Operation.changeTrust({
-      asset: USDC,
-      source: escrowKeypair.publicKey(),
-    }))
+    .addOperation(
+      Operation.changeTrust({
+        asset: USDC,
+        source: escrowKeypair.publicKey(),
+      }),
+    )
     // 3. Fund escrow with deposit
-    .addOperation(Operation.payment({
-      destination: escrowKeypair.publicKey(),
-      asset: USDC,
-      amount,
-    }))
+    .addOperation(
+      Operation.payment({
+        destination: escrowKeypair.publicKey(),
+        asset: USDC,
+        amount,
+      }),
+    )
     // 4. Set multi-sig: tenant(1) + landlord(1) + arbitrator(1), threshold 2
-    .addOperation(Operation.setOptions({
-      source: escrowKeypair.publicKey(),
-      signer: { ed25519PublicKey: tenantPublicKey, weight: 1 },
-    }))
-    .addOperation(Operation.setOptions({
-      source: escrowKeypair.publicKey(),
-      signer: { ed25519PublicKey: landlordPublicKey, weight: 1 },
-    }))
-    .addOperation(Operation.setOptions({
-      source: escrowKeypair.publicKey(),
-      signer: { ed25519PublicKey: arbitratorPublicKey, weight: 1 },
-      lowThreshold: 1,
-      medThreshold: 2,
-      highThreshold: 2,
-      masterWeight: 0, // disable master key
-    }))
+    .addOperation(
+      Operation.setOptions({
+        source: escrowKeypair.publicKey(),
+        signer: { ed25519PublicKey: tenantPublicKey, weight: 1 },
+      }),
+    )
+    .addOperation(
+      Operation.setOptions({
+        source: escrowKeypair.publicKey(),
+        signer: { ed25519PublicKey: landlordPublicKey, weight: 1 },
+      }),
+    )
+    .addOperation(
+      Operation.setOptions({
+        source: escrowKeypair.publicKey(),
+        signer: { ed25519PublicKey: arbitratorPublicKey, weight: 1 },
+        lowThreshold: 1,
+        medThreshold: 2,
+        highThreshold: 2,
+        masterWeight: 0, // disable master key
+      }),
+    )
     // 5. Anchor lease hash
-    .addOperation(Operation.manageData({
-      source: escrowKeypair.publicKey(),
-      name: 'trustrent:lease',
-      value: leaseHash,
-    }))
-    .addOperation(Operation.manageData({
-      source: escrowKeypair.publicKey(),
-      name: 'trustrent:tenant',
-      value: tenantPublicKey,
-    }))
-    .addOperation(Operation.manageData({
-      source: escrowKeypair.publicKey(),
-      name: 'trustrent:landlord',
-      value: landlordPublicKey,
-    }))
+    .addOperation(
+      Operation.manageData({
+        source: escrowKeypair.publicKey(),
+        name: 'trustrent:lease',
+        value: leaseHash,
+      }),
+    )
+    .addOperation(
+      Operation.manageData({
+        source: escrowKeypair.publicKey(),
+        name: 'trustrent:tenant',
+        value: tenantPublicKey,
+      }),
+    )
+    .addOperation(
+      Operation.manageData({
+        source: escrowKeypair.publicKey(),
+        name: 'trustrent:landlord',
+        value: landlordPublicKey,
+      }),
+    )
     .setTimeout(30)
     .build();
 

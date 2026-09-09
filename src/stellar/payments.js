@@ -1,10 +1,4 @@
-const {
-  Keypair,
-  TransactionBuilder,
-  Operation,
-  BASE_FEE,
-  Memo,
-} = require('@stellar/stellar-sdk');
+const { Keypair, TransactionBuilder, Operation, BASE_FEE, Memo } = require('@stellar/stellar-sdk');
 const { server, networkPassphrase, getUSDC } = require('./client');
 
 /**
@@ -59,18 +53,22 @@ async function submitRentPayment({
 
   if (memo) builder.addMemo(Memo.text(memo.slice(0, 28)));
 
-  builder.addOperation(Operation.payment({
-    destination: landlordPublicKey,
-    asset: USDC,
-    amount: landlordAmount,
-  }));
+  builder.addOperation(
+    Operation.payment({
+      destination: landlordPublicKey,
+      asset: USDC,
+      amount: landlordAmount,
+    }),
+  );
 
   if (agentAmount !== '0') {
-    builder.addOperation(Operation.payment({
-      destination: agentPublicKey,
-      asset: USDC,
-      amount: agentAmount,
-    }));
+    builder.addOperation(
+      Operation.payment({
+        destination: agentPublicKey,
+        asset: USDC,
+        amount: agentAmount,
+      }),
+    );
   }
 
   const tx = builder.setTimeout(30).build();
@@ -78,9 +76,7 @@ async function submitRentPayment({
 
   const result = await server.submitTransaction(tx);
 
-  const splits = [
-    { recipient: 'landlord', amount: landlordAmount, asset: 'USDC' },
-  ];
+  const splits = [{ recipient: 'landlord', amount: landlordAmount, asset: 'USDC' }];
   if (agentAmount !== '0') {
     splits.push({ recipient: 'agent', amount: agentAmount, asset: 'USDC' });
   }

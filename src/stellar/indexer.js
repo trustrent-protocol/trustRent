@@ -15,7 +15,7 @@ async function startIndexer() {
   // Load all active escrow accounts from DB
   const { rows: leases } = await pool.query(
     `SELECT id, escrow_account_pk FROM leases
-     WHERE status = 'active' AND escrow_account_pk IS NOT NULL`
+     WHERE status = 'active' AND escrow_account_pk IS NOT NULL`,
   );
 
   if (leases.length === 0) {
@@ -42,10 +42,9 @@ function watchAccount(leaseId, accountId) {
         if (payment.asset_code !== 'USDC') return;
 
         try {
-          const existing = await pool.query(
-            'SELECT id FROM payments WHERE tx_hash = $1',
-            [payment.transaction_hash]
-          );
+          const existing = await pool.query('SELECT id FROM payments WHERE tx_hash = $1', [
+            payment.transaction_hash,
+          ]);
           if (existing.rows.length > 0) return;
 
           await pool.query(
@@ -58,7 +57,7 @@ function watchAccount(leaseId, accountId) {
               payment.transaction_hash,
               payment.ledger, // actual ledger sequence number
               payment.created_at,
-            ]
+            ],
           );
           console.log(`Indexed payment ${payment.transaction_hash} for lease ${leaseId}`);
           notifyPaymentConfirmed({

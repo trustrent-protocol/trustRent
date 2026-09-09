@@ -21,7 +21,8 @@ function isAmountString(value) {
  * @param {boolean} [positive=true] require the amount to be > 0
  */
 function money(field, { positive = true } = {}) {
-  return require('express-validator').body(field)
+  return require('express-validator')
+    .body(field)
     .isString()
     .custom(positive ? isPositiveAmountString : isAmountString)
     .withMessage(`${field} must be a non-negative decimal string like "500.00"`);
@@ -32,9 +33,7 @@ function percentage(field, { optional = true } = {}) {
   const chain = optional
     ? require('express-validator').body(field).optional({ values: 'null' })
     : require('express-validator').body(field);
-  return chain
-    .isFloat({ min: 0, max: 100 })
-    .withMessage(`${field} must be between 0 and 100`);
+  return chain.isFloat({ min: 0, max: 100 }).withMessage(`${field} must be between 0 and 100`);
 }
 
 module.exports = { money, percentage };

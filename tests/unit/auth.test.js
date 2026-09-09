@@ -32,7 +32,9 @@ describe('auth middleware', () => {
   });
 
   test('rejects invalid or expired tokens', () => {
-    jwt.verify.mockImplementation(() => { throw new Error('expired'); });
+    jwt.verify.mockImplementation(() => {
+      throw new Error('expired');
+    });
     const req = { headers: { authorization: 'Bearer bad.token.here' } };
     const res = mockRes();
     auth(req, res, jest.fn());

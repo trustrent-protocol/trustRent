@@ -42,10 +42,12 @@ describe('POST /api/v1/leases', () => {
         duration_months: 12,
       });
     expect(res.status).toBe(201);
-    expect(Lease.create).toHaveBeenCalledWith(expect.objectContaining({
-      rent_amount: '500.00',
-      landlord_id: 'landlord-1',
-    }));
+    expect(Lease.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rent_amount: '500.00',
+        landlord_id: 'landlord-1',
+      }),
+    );
   });
 
   test('rejects negative monetary amounts', async () => {

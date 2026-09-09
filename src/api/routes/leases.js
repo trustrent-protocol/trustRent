@@ -7,7 +7,8 @@ const { money, percentage } = require('../validators/money');
 const Lease = require('../../db/models/lease');
 
 // POST /api/v1/leases
-router.post('/',
+router.post(
+  '/',
   auth,
   body('tenant_id').isUUID(),
   body('property_address').notEmpty(),
@@ -15,7 +16,8 @@ router.post('/',
   money('deposit_amount'),
   percentage('agent_fee_pct'),
   body('starts_at').isISO8601(),
-  body('ends_at').isISO8601()
+  body('ends_at')
+    .isISO8601()
     .custom((endsAt, { req }) => {
       return new Date(endsAt) > new Date(req.body.starts_at)
         ? true
@@ -33,7 +35,7 @@ router.post('/',
     } catch (err) {
       next(err);
     }
-  }
+  },
 );
 
 // GET /api/v1/leases/:id
@@ -42,7 +44,8 @@ router.get('/:id', auth, authorizeLease, (req, res) => {
 });
 
 // PATCH /api/v1/leases/:id
-router.patch('/:id',
+router.patch(
+  '/:id',
   auth,
   authorizeLease,
   body('status').isIn(['pending', 'active', 'ended', 'cancelled']),
@@ -57,7 +60,7 @@ router.patch('/:id',
     } catch (err) {
       next(err);
     }
-  }
+  },
 );
 
 // DELETE /api/v1/leases/:id  (pre-activation only)

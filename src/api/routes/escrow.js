@@ -8,7 +8,8 @@ const { createEscrow } = require('../../stellar/escrow');
 const { notifyLeaseActivated } = require('../../services/notifications');
 
 // POST /api/v1/escrow  — create escrow account for a lease
-router.post('/',
+router.post(
+  '/',
   auth,
   authorizeLease,
   body('lease_id').isUUID(),
@@ -31,9 +32,9 @@ router.post('/',
       const pool = require('../../db/pool');
       const { rows: users } = await pool.query(
         'SELECT id, stellar_pk FROM users WHERE id = ANY($1)',
-        [[lease.tenant_id, lease.landlord_id]]
+        [[lease.tenant_id, lease.landlord_id]],
       );
-      const byId = Object.fromEntries(users.map(u => [u.id, u.stellar_pk]));
+      const byId = Object.fromEntries(users.map((u) => [u.id, u.stellar_pk]));
 
       const { escrowPublicKey, txHash } = await createEscrow({
         tenantPublicKey: byId[lease.tenant_id],
@@ -51,7 +52,7 @@ router.post('/',
     } catch (err) {
       next(err);
     }
-  }
+  },
 );
 
 // GET /api/v1/escrow/:leaseId
@@ -64,7 +65,7 @@ router.get('/:leaseId', auth, authorizeLease, async (req, res, next) => {
 
     const { server } = require('../../stellar/client');
     const account = await server.loadAccount(lease.escrow_account_pk);
-    const usdcBalance = account.balances.find(b => b.asset_code === 'USDC');
+    const usdcBalance = account.balances.find((b) => b.asset_code === 'USDC');
 
     res.json({
       escrow_account_pk: lease.escrow_account_pk,

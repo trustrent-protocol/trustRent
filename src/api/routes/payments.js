@@ -10,7 +10,8 @@ const { submitRentPayment } = require('../../stellar/payments');
 const { notifyPaymentConfirmed } = require('../../services/notifications');
 
 // POST /api/v1/payments
-router.post('/',
+router.post(
+  '/',
   auth,
   authorizeLease,
   body('lease_id').isUUID(),
@@ -35,12 +36,14 @@ router.post('/',
       const pool = require('../../db/pool');
       const { rows: users } = await pool.query(
         'SELECT id, stellar_pk FROM users WHERE id = ANY($1)',
-        [[lease.tenant_id, lease.landlord_id, lease.agent_id].filter(Boolean)]
+        [[lease.tenant_id, lease.landlord_id, lease.agent_id].filter(Boolean)],
       );
-      const byId = Object.fromEntries(users.map(u => [u.id, u.stellar_pk]));
+      const byId = Object.fromEntries(users.map((u) => [u.id, u.stellar_pk]));
 
       // Create pending payment record
-      const { rows: [pending] } = await Payment.create({ lease_id, amount, asset, memo });
+      const {
+        rows: [pending],
+      } = await Payment.create({ lease_id, amount, asset, memo });
 
       const result = await submitRentPayment({
         tenantSecretKey: tenant_secret_key,
@@ -51,12 +54,14 @@ router.post('/',
         memo,
       });
 
-      const { rows: [confirmed] } = await Payment.confirm(
+      const {
+        rows: [confirmed],
+      } = await Payment.confirm(
         pending.id,
         result.txHash,
         result.ledger,
         result.splits,
-        result.settledAt
+        result.settledAt,
       );
 
       notifyPaymentConfirmed({
@@ -76,7 +81,7 @@ router.post('/',
     } catch (err) {
       next(err);
     }
-  }
+  },
 );
 
 // GET /api/v1/payments/:leaseId

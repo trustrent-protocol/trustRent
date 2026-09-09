@@ -35,7 +35,7 @@ describe('money validator', () => {
   test('accepts zero when positive is disabled', async () => {
     const errors = await validateChain(
       money('amount', { positive: false }),
-      buildRequest({ amount: '0' })
+      buildRequest({ amount: '0' }),
     );
     expect(errors).toEqual([]);
   });
@@ -51,14 +51,20 @@ describe('money validator', () => {
 describe('percentage validator', () => {
   test('accepts 0..100', async () => {
     for (const v of ['0', '7', '100', 7.5]) {
-      const errors = await validateChain(percentage('agent_fee_pct'), buildRequest({ agent_fee_pct: v }));
+      const errors = await validateChain(
+        percentage('agent_fee_pct'),
+        buildRequest({ agent_fee_pct: v }),
+      );
       expect(errors).toEqual([]);
     }
   });
 
   test('rejects out-of-range values', async () => {
     for (const v of ['-1', '100.01', '101']) {
-      const errors = await validateChain(percentage('agent_fee_pct'), buildRequest({ agent_fee_pct: v }));
+      const errors = await validateChain(
+        percentage('agent_fee_pct'),
+        buildRequest({ agent_fee_pct: v }),
+      );
       expect(errors).not.toEqual([]);
     }
   });
