@@ -61,4 +61,10 @@ function assertTransition(from, to) {
   }
 }
 
-module.exports = { LEASE_STATUSES, LEASE_TRANSITIONS, nextStatuses, canTransition, assertTransition };
+module.exports = {
+  LEASE_STATUSES,
+  LEASE_TRANSITIONS,
+  nextStatuses,
+  canTransition,
+  assertTransition,
+};
