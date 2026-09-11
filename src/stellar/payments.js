@@ -1,16 +1,6 @@
 const { Keypair, TransactionBuilder, Operation, BASE_FEE, Memo } = require('@stellar/stellar-sdk');
 const { server, networkPassphrase, getUSDC } = require('./client');
-
-/**
- * Parse a decimal money string into 1e7-scaled integer units without
- * touching floating-point at all (pure string manipulation).
- * e.g. "499.99" → 4999900000
- */
-function parseToUnits(amount) {
-  const [whole = '0', frac = ''] = amount.split('.');
-  const padded = frac.padEnd(7, '0').slice(0, 7);
-  return BigInt(whole) * 10000000n + BigInt(padded);
-}
+const { parseToUnits, unitsToDecimal } = require('../lib/money');
 
 /**
  * Split an amount string into integer units (7 decimal places, Stellar's
@@ -28,14 +18,6 @@ function calculateSplits(amount, agentFeePct) {
     landlord: unitsToDecimal(landlordUnits),
     agent: unitsToDecimal(agentUnits),
   };
-}
-
-/**
- * Convert 1e7-scaled integer units back to a 7-decimal money string.
- */
-function unitsToDecimal(units) {
-  const s = units.toString().padStart(8, '0');
-  return s.slice(0, -7) + '.' + s.slice(-7);
 }
 
 /**

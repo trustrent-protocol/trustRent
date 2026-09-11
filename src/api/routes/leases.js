@@ -25,6 +25,9 @@ router.post(
         : Promise.reject(new Error('ends_at must be after starts_at'));
     }),
   body('duration_months').isInt({ min: 1 }),
+  body('rent_due_day').optional({ values: 'null' }).isInt({ min: 1, max: 31 }),
+  body('late_fee_daily_pct').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
+  body('late_fee_grace_days').optional({ values: 'null' }).isInt({ min: 0 }),
   validate,
   async (req, res, next) => {
     try {

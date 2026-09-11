@@ -442,7 +442,7 @@ We aim to acknowledge reports within 24 hours and patch critical issues within 7
 ### v0.4 — Soroban Contracts
 - [x] Soroban escrow contract (release, split, dispute, arbitrate, clawback)
 - [x] Decentralized arbitration voting (panel quorum)
-- [ ] Automated late-fee calculation
+- [x] Automated late-fee calculation
 - [ ] Scheduled recurring payments
 
 ### v1.0 — Production

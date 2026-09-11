@@ -4,8 +4,9 @@ const create = (data) =>
   pool.query(
     `INSERT INTO leases
      (landlord_id, tenant_id, agent_id, property_address, rent_amount,
-      deposit_amount, asset, agent_fee_pct, lease_hash, starts_at, ends_at, duration_months)
-   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      deposit_amount, asset, agent_fee_pct, lease_hash, starts_at, ends_at, duration_months,
+      rent_due_day, late_fee_daily_pct, late_fee_grace_days)
+   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
     [
       data.landlord_id,
       data.tenant_id,
@@ -19,6 +20,9 @@ const create = (data) =>
       data.starts_at,
       data.ends_at,
       data.duration_months,
+      data.rent_due_day || null,
+      data.late_fee_daily_pct ?? 0.05,
+      data.late_fee_grace_days ?? 0,
     ],
   );
 

@@ -8,6 +8,7 @@ const Payment = require('../../db/models/payment');
 const Lease = require('../../db/models/lease');
 const { submitRentPayment } = require('../../stellar/payments');
 const { notifyPaymentConfirmed } = require('../../services/notifications');
+const { computeLateFee } = require('../../services/lateFees');
 
 const IDEMPOTENCY_ERROR_CODE = '23505';
 
@@ -125,6 +126,8 @@ router.post(
         amount,
       });
 
+      const lateFeeInfo = computeLateFee(lease, new Date());
+
       res.status(201).json({
         id: confirmed.id,
         status: confirmed.status,
@@ -132,6 +135,10 @@ router.post(
         ledger: confirmed.ledger,
         settledAt: confirmed.settled_at,
         splits: result.splits,
+        ...(lateFeeInfo.lateFee !== '0.0000000' && {
+          late_fee: lateFeeInfo.lateFee,
+          days_late: lateFeeInfo.daysLate,
+        }),
       });
     } catch (err) {
       next(err);
