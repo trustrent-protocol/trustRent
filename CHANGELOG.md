@@ -16,6 +16,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   endpoint (per-period due dates, paid/overdue status, exact totals)
 - Multi-asset support: pinned USDC + EURC issuer registry (`src/lib/assets.js`)
   with per-network resolution; payments now accept any supported asset code
+- Deposit release and dispute lifecycle: `disputes` table + service, endpoints
+  to open/list/resolve disputes and to release the deposit (full or agreed
+  split), ending the lease and emitting `dispute.opened` / `deposit.released`
+  webhook events (replaces the v0.2 501 stubs)
 
 ## [0.1.0] — 2026-05-12
 

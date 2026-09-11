@@ -51,8 +51,11 @@ Authorization: Bearer <jwt>
 ```
 
 ### GET /escrow/:leaseId
-### POST /escrow/:leaseId/release  *(v0.2)*
-### POST /escrow/:leaseId/dispute  *(v0.2)*
+### POST /escrow/:leaseId/dispute  `{ "reason": "...", "evidence": { ... } }`
+### GET /escrow/:leaseId/disputes
+### POST /escrow/:leaseId/disputes/:disputeId/resolve  `{ "tenant_share_pct": 80, "resolution_note": "..." }`
+### POST /escrow/:leaseId/release  `{ "tenant_share_pct": 100, "resolution_note": "..." }`
+*(default `tenant_share_pct` is 100 — full deposit return to the tenant)*
 
 ## Payments
 

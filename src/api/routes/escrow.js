@@ -4,8 +4,14 @@ const auth = require('../middleware/auth');
 const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const Lease = require('../../db/models/lease');
+const Dispute = require('../../db/models/dispute');
 const { createEscrow } = require('../../stellar/escrow');
-const { notifyLeaseActivated } = require('../../services/notifications');
+const { openDispute, resolveDeposit, resolveDispute } = require('../../services/dispute');
+const {
+  notifyLeaseActivated,
+  notifyDisputeOpened,
+  notifyDepositReleased,
+} = require('../../services/notifications');
 
 // POST /api/v1/escrow  — create escrow account for a lease
 router.post(
@@ -78,14 +84,120 @@ router.get('/:leaseId', auth, authorizeLease, async (req, res, next) => {
   }
 });
 
-// POST /api/v1/escrow/:leaseId/release  — initiate deposit release (stub)
-router.post('/:leaseId/release', auth, async (req, res) => {
-  res.status(501).json({ message: 'Deposit release flow coming in v0.2' });
+// POST /api/v1/escrow/:leaseId/dispute  — open a deposit dispute
+router.post(
+  '/:leaseId/dispute',
+  auth,
+  authorizeLease,
+  body('reason').isString().isLength({ min: 10, max: 2000 }),
+  body('evidence').optional().isObject(),
+  validate,
+  async (req, res, next) => {
+    try {
+      const lease = req.lease;
+      const disputants = [lease.landlord_id, lease.tenant_id].map(String);
+      if (!disputants.includes(String(req.user.id))) {
+        return res.status(403).json({ error: 'Only the tenant or landlord can open a dispute' });
+      }
+      if (!lease.escrow_account_pk) {
+        return res.status(409).json({ error: 'No escrow account locked for this lease' });
+      }
+
+      const dispute = await openDispute({
+        leaseId: lease.id,
+        raisedBy: req.user.id,
+        reason: req.body.reason,
+        evidence: req.body.evidence,
+      });
+      notifyDisputeOpened({ leaseId: lease.id, disputeId: dispute.id });
+      res.status(201).json(dispute);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// GET /api/v1/escrow/:leaseId/disputes — list disputes for a lease
+router.get('/:leaseId/disputes', auth, authorizeLease, async (req, res, next) => {
+  try {
+    const { rows } = await Dispute.findByLease(req.lease.id);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
 });
 
-// POST /api/v1/escrow/:leaseId/dispute  — open a dispute (stub)
-router.post('/:leaseId/dispute', auth, async (req, res) => {
-  res.status(501).json({ message: 'Dispute flow coming in v0.2' });
-});
+// POST /api/v1/escrow/:leaseId/release  — release the deposit and end the lease
+router.post(
+  '/:leaseId/release',
+  auth,
+  authorizeLease,
+  body('tenant_share_pct').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
+  body('resolution_note').optional().isString().isLength({ max: 2000 }),
+  validate,
+  async (req, res, next) => {
+    try {
+      const lease = req.lease;
+      const parties = [lease.landlord_id, lease.tenant_id].map(String);
+      if (!parties.includes(String(req.user.id))) {
+        return res
+          .status(403)
+          .json({ error: 'Only the tenant or landlord can release the deposit' });
+      }
+
+      const plan = await resolveDeposit({
+        lease,
+        tenantSharePct: req.body.tenant_share_pct ?? 100,
+        resolutionNote: req.body.resolution_note,
+        resolvedBy: req.user.id,
+      });
+
+      await Lease.updateStatus(lease.id, 'ended');
+      notifyDepositReleased({
+        leaseId: lease.id,
+        tenant: plan.tenant,
+        landlord: plan.landlord,
+        kind: plan.kind,
+      });
+      res.json(plan);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /api/v1/escrow/:leaseId/disputes/:disputeId/resolve  — record an agreement/arbitration
+router.post(
+  '/:leaseId/disputes/:disputeId/resolve',
+  auth,
+  authorizeLease,
+  body('tenant_share_pct').isFloat({ min: 0, max: 100 }),
+  body('resolution_note').optional().isString().isLength({ max: 2000 }),
+  validate,
+  async (req, res, next) => {
+    try {
+      const lease = req.lease;
+      const parties = [lease.landlord_id, lease.tenant_id].map(String);
+      if (!parties.includes(String(req.user.id))) {
+        return res.status(403).json({ error: 'Only the tenant or landlord can resolve a dispute' });
+      }
+
+      const { rows } = await Dispute.findById(req.params.disputeId);
+      if (!rows[0] || String(rows[0].lease_id) !== String(lease.id)) {
+        return res.status(404).json({ error: 'Dispute not found for this lease' });
+      }
+
+      const dispute = await resolveDispute({
+        disputeId: req.params.disputeId,
+        tenantSharePct: req.body.tenant_share_pct,
+        resolutionNote: req.body.resolution_note,
+        resolvedBy: req.user.id,
+      });
+      res.json(dispute);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 module.exports = router;

@@ -42,4 +42,17 @@ function notifyLeaseActivated({ leaseId }) {
   return postWebhook('lease.activated', { leaseId });
 }
 
-module.exports = { notifyPaymentConfirmed, notifyLeaseActivated };
+function notifyDisputeOpened({ leaseId, disputeId }) {
+  return postWebhook('dispute.opened', { leaseId, disputeId });
+}
+
+function notifyDepositReleased({ leaseId, tenant, landlord, kind }) {
+  return postWebhook('deposit.released', { leaseId, tenant, landlord, kind });
+}
+
+module.exports = {
+  notifyPaymentConfirmed,
+  notifyLeaseActivated,
+  notifyDisputeOpened,
+  notifyDepositReleased,
+};
