@@ -12,6 +12,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Automated late-fee calculation: exact integer math, lease-level config
   (`rent_due_day`, `late_fee_daily_pct`, `late_fee_grace_days`), applied to
   rent payments and surfaced in the payment receipt
+- Recurring rent schedule service and `GET /payments/:leaseId/schedule`
+  endpoint (per-period due dates, paid/overdue status, exact totals)
 
 ## [0.1.0] — 2026-05-12
 

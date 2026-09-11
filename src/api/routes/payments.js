@@ -9,6 +9,7 @@ const Lease = require('../../db/models/lease');
 const { submitRentPayment } = require('../../stellar/payments');
 const { notifyPaymentConfirmed } = require('../../services/notifications');
 const { computeLateFee } = require('../../services/lateFees');
+const { buildPaymentSchedule, summarizeSchedule } = require('../../services/schedule');
 
 const IDEMPOTENCY_ERROR_CODE = '23505';
 
@@ -145,6 +146,43 @@ router.post(
     }
   },
 );
+
+// GET /api/v1/payments/:leaseId/schedule
+router.get('/:leaseId/schedule', auth, async (req, res, next) => {
+  try {
+    const { rows } = await Lease.findById(req.params.leaseId);
+    const lease = rows[0];
+    if (!lease) return res.status(404).json({ error: 'Lease not found' });
+
+    const involved = [lease.landlord_id, lease.tenant_id, lease.agent_id]
+      .filter(Boolean)
+      .map(String);
+    if (!involved.includes(String(req.user.id))) {
+      return res.status(403).json({ error: 'You are not a party to this lease' });
+    }
+    if (!lease.starts_at || !lease.duration_months) {
+      return res
+        .status(422)
+        .json({ error: 'Lease is missing schedule parameters (starts_at, duration_months)' });
+    }
+
+    const { rows: payments } = await Payment.findByLease(lease.id);
+    const paidPeriods = payments
+      .filter((p) => p.status === 'confirmed' && p.settled_at)
+      .map((p) => new Date(p.settled_at).toISOString().slice(0, 10));
+
+    const schedule = buildPaymentSchedule({
+      startsAt: String(lease.starts_at).slice(0, 10),
+      durationMonths: lease.duration_months,
+      rentAmount: lease.rent_amount,
+      rentDueDay: lease.rent_due_day,
+    });
+
+    res.json(summarizeSchedule(schedule, { paidPeriods }));
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/v1/payments/:leaseId
 router.get('/:leaseId', auth, async (req, res, next) => {

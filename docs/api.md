@@ -68,4 +68,16 @@ Authorization: Bearer <jwt>
 ```
 
 ### GET /payments/:leaseId
+### GET /payments/:leaseId/schedule
+Builds the recurring rent schedule for a lease (due dates, per-period
+paid/overdue/scheduled status, and exact outstanding totals).
+
+```json
+{
+  "schedule": [{ "period": 1, "period_label": "May 2026", "due_date": "2026-05-05", "amount": "500.00", "status": "paid" }],
+  "summary": { "total_periods": 12, "paid_periods": 1, "overdue_periods": 0, "due_periods": 11, "total_due": "6000.0000000", "total_paid": "500.0000000", "outstanding": "5500.0000000" },
+  "next_due_date": "2026-06-05"
+}
+```
+
 ### GET /payments/receipt/:txHash

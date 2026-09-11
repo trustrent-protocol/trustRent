@@ -443,7 +443,7 @@ We aim to acknowledge reports within 24 hours and patch critical issues within 7
 - [x] Soroban escrow contract (release, split, dispute, arbitrate, clawback)
 - [x] Decentralized arbitration voting (panel quorum)
 - [x] Automated late-fee calculation
-- [ ] Scheduled recurring payments
+- [x] Scheduled recurring payments
 
 ### v1.0 — Production
 - [ ] Mobile SDK (React Native)
