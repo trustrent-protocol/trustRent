@@ -61,7 +61,7 @@ Authorization: Bearer <jwt>
 {
   "lease_id": "uuid",
   "amount": "500.00",
-  "asset": "USDC",
+  "asset": "USDC | EURC",
   "memo": "Rent June 2026",
   "tenant_secret_key": "S..."
 }

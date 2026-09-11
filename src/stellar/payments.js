@@ -1,5 +1,5 @@
 const { Keypair, TransactionBuilder, Operation, BASE_FEE, Memo } = require('@stellar/stellar-sdk');
-const { server, networkPassphrase, getUSDC } = require('./client');
+const { server, networkPassphrase, getAsset } = require('./client');
 const { parseToUnits, unitsToDecimal } = require('../lib/money');
 
 /**
@@ -39,10 +39,11 @@ async function submitRentPayment({
   amount,
   agentFeePct = 0,
   memo,
+  asset = 'USDC',
 }) {
   const tenantKeypair = Keypair.fromSecret(tenantSecretKey);
   const tenantAccount = await server.loadAccount(tenantKeypair.publicKey());
-  const USDC = getUSDC();
+  const stellarAsset = getAsset(asset);
 
   const { landlord, agent } = calculateSplits(amount, agentFeePct);
   const agentAmount = agentPublicKey && agent !== '0.0000000' ? agent : '0';
@@ -58,7 +59,7 @@ async function submitRentPayment({
   builder.addOperation(
     Operation.payment({
       destination: landlordPublicKey,
-      asset: USDC,
+      asset: stellarAsset,
       amount: landlordAmount,
     }),
   );
@@ -67,7 +68,7 @@ async function submitRentPayment({
     builder.addOperation(
       Operation.payment({
         destination: agentPublicKey,
-        asset: USDC,
+        asset: stellarAsset,
         amount: agentAmount,
       }),
     );
@@ -78,9 +79,9 @@ async function submitRentPayment({
 
   const result = await server.submitTransaction(tx);
 
-  const splits = [{ recipient: 'landlord', amount: landlordAmount, asset: 'USDC' }];
+  const splits = [{ recipient: 'landlord', amount: landlordAmount, asset }];
   if (agentAmount !== '0') {
-    splits.push({ recipient: 'agent', amount: agentAmount, asset: 'USDC' });
+    splits.push({ recipient: 'agent', amount: agentAmount, asset });
   }
 
   return {

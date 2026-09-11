@@ -1,4 +1,5 @@
 const { Horizon, Networks, Asset } = require('@stellar/stellar-sdk');
+const { assetIssuer, supportedAssets } = require('../lib/assets');
 
 const isTestnet = process.env.STELLAR_NETWORK !== 'mainnet';
 
@@ -8,12 +9,17 @@ const server = new Horizon.Server(
 
 const networkPassphrase = isTestnet ? Networks.TESTNET : Networks.PUBLIC;
 
-const USDC_ISSUER_TESTNET = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
-const USDC_ISSUER_MAINNET = 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
-
-function getUSDC() {
-  const issuer = isTestnet ? USDC_ISSUER_TESTNET : USDC_ISSUER_MAINNET;
-  return new Asset('USDC', issuer);
+/**
+ * Build the Stellar Asset object for a supported asset code on the active
+ * network. Throws for unsupported codes.
+ * @param {string} [code='USDC']
+ */
+function getAsset(code = 'USDC') {
+  return new Asset(code, assetIssuer(code, isTestnet));
 }
 
-module.exports = { server, networkPassphrase, isTestnet, getUSDC };
+function getUSDC() {
+  return getAsset('USDC');
+}
+
+module.exports = { server, networkPassphrase, isTestnet, getUSDC, getAsset, supportedAssets };

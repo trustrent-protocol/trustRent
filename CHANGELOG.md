@@ -14,6 +14,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   rent payments and surfaced in the payment receipt
 - Recurring rent schedule service and `GET /payments/:leaseId/schedule`
   endpoint (per-period due dates, paid/overdue status, exact totals)
+- Multi-asset support: pinned USDC + EURC issuer registry (`src/lib/assets.js`)
+  with per-network resolution; payments now accept any supported asset code
 
 ## [0.1.0] — 2026-05-12
 

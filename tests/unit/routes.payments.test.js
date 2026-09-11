@@ -144,6 +144,45 @@ describe('POST /api/v1/payments', () => {
     expect(Payment.markFailed).toHaveBeenCalledWith('pay-1', 'timeout on horizon');
   });
 
+  test('rejects an unsupported asset code', async () => {
+    Lease.findById.mockResolvedValue({ rows: [activeLease] });
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set('Authorization', `Bearer ${tenantToken()}`)
+      .send(baseBody({ asset: 'BTC' }));
+    expect(res.status).toBe(422);
+    expect(Payment.create).not.toHaveBeenCalled();
+  });
+
+  test('accepts a supported non-USDC asset', async () => {
+    Lease.findById.mockResolvedValue({ rows: [activeLease] });
+    Payment.findByIdempotency.mockResolvedValue({ rows: [] });
+    Payment.create.mockResolvedValue({
+      rows: [{ id: 'pay-1', status: 'pending' }],
+    });
+    const pool = require('../../src/db/pool');
+    pool.query.mockResolvedValue({
+      rows: [
+        { id: 'tenant-1', stellar_pk: 'T' },
+        { id: 'landlord-1', stellar_pk: 'L' },
+      ],
+    });
+    submitRentPayment.mockResolvedValue({
+      txHash: 'txhash123',
+      ledger: 123456,
+      settledAt: '2026-01-01T00:00:00.000Z',
+      splits: [{ recipient: 'landlord', amount: '500.00', asset: 'EURC' }],
+    });
+    Payment.confirm.mockResolvedValue({ rows: [confirmedPayment] });
+
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set('Authorization', `Bearer ${tenantToken()}`)
+      .send(baseBody({ asset: 'EURC' }));
+    expect(res.status).toBe(201);
+    expect(submitRentPayment).toHaveBeenCalledWith(expect.objectContaining({ asset: 'EURC' }));
+  });
+
   test('rejects an invalid idempotency_key format', async () => {
     Lease.findById.mockResolvedValue({ rows: [activeLease] });
     const res = await request(app)

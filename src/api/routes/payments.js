@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const { money } = require('../validators/money');
+const { supportedAssets } = require('../../lib/assets');
 const Payment = require('../../db/models/payment');
 const Lease = require('../../db/models/lease');
 const { submitRentPayment } = require('../../stellar/payments');
@@ -35,7 +36,7 @@ router.post(
   authorizeLease,
   body('lease_id').isUUID(),
   money('amount'),
-  body('asset').optional().equals('USDC'),
+  body('asset').optional().isIn(supportedAssets()),
   body('idempotency_key')
     .optional()
     .isString()
@@ -103,6 +104,7 @@ router.post(
           amount,
           agentFeePct: parseFloat(lease.agent_fee_pct) || 0,
           memo,
+          asset,
         });
       } catch (err) {
         // Never leave a payment stuck in 'pending': record the failure and

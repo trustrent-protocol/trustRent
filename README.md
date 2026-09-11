@@ -435,7 +435,7 @@ We aim to acknowledge reports within 24 hours and patch critical issues within 7
 - [ ] Email and webhook notifications
 
 ### v0.3 — Stablecoin Flexibility
-- [ ] Multi-asset support (EURC, local anchored assets)
+- [x] Multi-asset support (EURC, local anchored assets)
 - [ ] On-chain DEX integration for currency conversion at payment time
 - [ ] Tenant pays in local currency → landlord receives USDC
 
