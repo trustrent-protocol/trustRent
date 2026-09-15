@@ -27,4 +27,4 @@ The escrow account uses Stellar's native multi-signature with weights:
 
 ## Indexer
 
-The indexer (`src/stellar/indexer.js`) streams payment events from Horizon for all active escrow accounts and writes confirmed payments to PostgreSQL. This provides a queryable payment history without requiring clients to query Horizon directly.
+The indexer (`src/stellar/indexer.js`) streams payment events from Horizon for the landlord (and agent) accounts of all active leases and writes confirmed rent payments to PostgreSQL. Each on-chain payment carries a `trustrent:<lease>` memo stamped by the API, which the indexer uses to correlate the transaction to its lease — the escrow deposit is deliberately *not* watched, since it is not rent and would otherwise be double-recorded. Cursors are persisted per account so restarts resume exactly where they left off, and streams reconnect with exponential backoff on error. This provides a queryable payment history that reconciles API-side confirmations with on-chain reality.
