@@ -218,6 +218,10 @@ DATABASE_URL=postgresql://user:pass@localhost:5432/trustrent
 # Off-chain signing service
 SIGNING_SERVICE_URL=http://localhost:3001
 
+# Comma-separated allow-list of frontend origins (browser CORS).
+# Deny-all when unset — non-browser clients (curl, SDKs) are always allowed.
+CORS_ORIGINS=https://app.trustrent.example,http://localhost:3001
+
 # Notification webhook (optional)
 WEBHOOK_URL=https://your-app.com/webhooks/trustrent
 ```
