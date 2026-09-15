@@ -1,6 +1,7 @@
 const { Keypair, TransactionBuilder, Operation, BASE_FEE, Memo } = require('@stellar/stellar-sdk');
 const { server, networkPassphrase, getAsset } = require('./client');
 const { parseToUnits, unitsToDecimal } = require('../lib/money');
+const { truncateToBytes } = require('../lib/memo');
 
 /**
  * Split an amount string into integer units (7 decimal places, Stellar's
@@ -54,7 +55,7 @@ async function submitRentPayment({
     networkPassphrase,
   });
 
-  if (memo) builder.addMemo(Memo.text(memo.slice(0, 28)));
+  if (memo) builder.addMemo(Memo.text(truncateToBytes(memo)));
 
   builder.addOperation(
     Operation.payment({

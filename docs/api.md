@@ -66,9 +66,18 @@ Authorization: Bearer <jwt>
   "amount": "500.00",
   "asset": "USDC | EURC",
   "memo": "Rent June 2026",
-  "tenant_secret_key": "S..."
+  "tenant_secret_key": "S...",
+  "idempotency_key": "rent-jun-2026"
 }
 ```
+
+- `amount` **must equal** the lease's scheduled rent (`lease.rent_amount`).
+  Under- or over-payments are rejected (422); the on-chain memo is stamped
+  with a `trustrent:<lease>...` prefix so the indexer can correlate the
+  transaction even if the API response is lost.
+- The `memo` is truncated to Stellar's 28-**byte** `Memo.text` limit (byte
+  accurate, UTF-8 safe). `idempotency_key` makes re-submission safe: replaying
+  a confirmed key returns the existing payment (200).
 
 ### GET /payments/:leaseId
 ### GET /payments/:leaseId/schedule

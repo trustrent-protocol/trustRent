@@ -1,10 +1,12 @@
 const router = require('express').Router();
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 const auth = require('../middleware/auth');
 const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
 const { money } = require('../validators/money');
 const { supportedAssets } = require('../../lib/assets');
+const { eq: moneyEquals } = require('../../lib/money');
+const { buildLeaseMemo } = require('../../lib/memo');
 const Payment = require('../../db/models/payment');
 const Lease = require('../../db/models/lease');
 const { submitRentPayment } = require('../../stellar/payments');
@@ -33,7 +35,6 @@ function idempotencyConflict(res, existing) {
 router.post(
   '/',
   auth,
-  authorizeLease,
   body('lease_id').isUUID(),
   money('amount'),
   body('asset').optional().isIn(supportedAssets()),
@@ -43,13 +44,13 @@ router.post(
     .isLength({ min: 1, max: 64 })
     .matches(/^[A-Za-z0-9_-]+$/),
   validate,
+  authorizeLease,
   async (req, res, next) => {
     try {
       const {
         lease_id,
         amount,
         asset = 'USDC',
-        memo,
         tenant_secret_key,
         idempotency_key = null,
       } = req.body;
@@ -64,6 +65,19 @@ router.post(
       if (String(lease.tenant_id) !== String(req.user.id)) {
         return res.status(403).json({ error: 'Only the tenant can submit payments' });
       }
+
+      // The scheduled rent is the only amount a period can be settled for.
+      // Accepting arbitrary amounts would let an underpayment be recorded as a
+      // completed month on the schedule.
+      if (!moneyEquals(amount, lease.rent_amount)) {
+        return res.status(422).json({
+          error: `amount must equal the scheduled rent for this lease (${lease.rent_amount})`,
+        });
+      }
+
+      // Stamp the on-chain memo with the lease id so the indexer can correlate
+      // the payment even if the API response is lost.
+      const memo = buildLeaseMemo(lease_id, req.body.memo);
 
       // Idempotent replay: the same logical payment (lease + key) must only
       // ever submit to the ledger once, even if the client retries.
@@ -150,7 +164,12 @@ router.post(
 );
 
 // GET /api/v1/payments/:leaseId/schedule
-router.get('/:leaseId/schedule', auth, async (req, res, next) => {
+router.get(
+  '/:leaseId/schedule',
+  auth,
+  param('leaseId').isUUID(),
+  validate,
+  async (req, res, next) => {
   try {
     const { rows } = await Lease.findById(req.params.leaseId);
     const lease = rows[0];
@@ -187,7 +206,12 @@ router.get('/:leaseId/schedule', auth, async (req, res, next) => {
 });
 
 // GET /api/v1/payments/:leaseId
-router.get('/:leaseId', auth, async (req, res, next) => {
+router.get(
+  '/:leaseId',
+  auth,
+  param('leaseId').isUUID(),
+  validate,
+  async (req, res, next) => {
   try {
     const { rows } = await Lease.findById(req.params.leaseId);
     const lease = rows[0];

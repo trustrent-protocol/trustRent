@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { body } = require('express-validator');
+const { body, param } = require('express-validator');
 const auth = require('../middleware/auth');
 const { authorizeLease } = require('../middleware/authorize');
 const validate = require('../middleware/validate');
@@ -17,10 +17,10 @@ const {
 router.post(
   '/',
   auth,
-  authorizeLease,
   body('lease_id').isUUID(),
-  body('funding_secret_key').notEmpty(),
+  body('funding_secret_key').notEmpty().withMessage('funding_secret_key is required'),
   validate,
+  authorizeLease,
   async (req, res, next) => {
     try {
       const { lease_id, funding_secret_key } = req.body;
@@ -62,7 +62,13 @@ router.post(
 );
 
 // GET /api/v1/escrow/:leaseId
-router.get('/:leaseId', auth, authorizeLease, async (req, res, next) => {
+router.get(
+  '/:leaseId',
+  auth,
+  param('leaseId').isUUID(),
+  validate,
+  authorizeLease,
+  async (req, res, next) => {
   try {
     const lease = req.lease;
     if (!lease.escrow_account_pk) {
@@ -88,10 +94,11 @@ router.get('/:leaseId', auth, authorizeLease, async (req, res, next) => {
 router.post(
   '/:leaseId/dispute',
   auth,
-  authorizeLease,
+  param('leaseId').isUUID(),
   body('reason').isString().isLength({ min: 10, max: 2000 }),
   body('evidence').optional().isObject(),
   validate,
+  authorizeLease,
   async (req, res, next) => {
     try {
       const lease = req.lease;
@@ -118,23 +125,31 @@ router.post(
 );
 
 // GET /api/v1/escrow/:leaseId/disputes — list disputes for a lease
-router.get('/:leaseId/disputes', auth, authorizeLease, async (req, res, next) => {
-  try {
-    const { rows } = await Dispute.findByLease(req.lease.id);
-    res.json(rows);
-  } catch (err) {
-    next(err);
-  }
-});
+router.get(
+  '/:leaseId/disputes',
+  auth,
+  param('leaseId').isUUID(),
+  validate,
+  authorizeLease,
+  async (req, res, next) => {
+    try {
+      const { rows } = await Dispute.findByLease(req.lease.id);
+      res.json(rows);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // POST /api/v1/escrow/:leaseId/release  — release the deposit and end the lease
 router.post(
   '/:leaseId/release',
   auth,
-  authorizeLease,
+  param('leaseId').isUUID(),
   body('tenant_share_pct').optional({ values: 'null' }).isFloat({ min: 0, max: 100 }),
   body('resolution_note').optional().isString().isLength({ max: 2000 }),
   validate,
+  authorizeLease,
   async (req, res, next) => {
     try {
       const lease = req.lease;
@@ -170,10 +185,12 @@ router.post(
 router.post(
   '/:leaseId/disputes/:disputeId/resolve',
   auth,
-  authorizeLease,
+  param('leaseId').isUUID(),
+  param('disputeId').isUUID(),
   body('tenant_share_pct').isFloat({ min: 0, max: 100 }),
   body('resolution_note').optional().isString().isLength({ max: 2000 }),
   validate,
+  authorizeLease,
   async (req, res, next) => {
     try {
       const lease = req.lease;

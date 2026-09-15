@@ -26,6 +26,7 @@ const activeLease = {
   agent_id: null,
   status: 'active',
   agent_fee_pct: '0',
+  rent_amount: '500.00',
 };
 
 const confirmedPayment = {
@@ -142,6 +143,17 @@ describe('POST /api/v1/payments', () => {
       .send(baseBody());
     expect(res.status).toBe(500);
     expect(Payment.markFailed).toHaveBeenCalledWith('pay-1', 'timeout on horizon');
+  });
+
+  test('rejects a payment whose amount differs from the scheduled rent', async () => {
+    Lease.findById.mockResolvedValue({ rows: [activeLease] });
+    const res = await request(app)
+      .post('/api/v1/payments')
+      .set('Authorization', `Bearer ${tenantToken()}`)
+      .send(baseBody({ amount: '499.99' }));
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/scheduled rent/);
+    expect(Payment.create).not.toHaveBeenCalled();
   });
 
   test('rejects an unsupported asset code', async () => {

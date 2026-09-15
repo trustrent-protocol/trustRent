@@ -31,7 +31,7 @@ const activeLease = {
 };
 
 const disputeRow = {
-  id: 'dispute-1',
+  id: '00000000-0000-0000-0000-0000000000aa',
   lease_id: LEASE_ID,
   raised_by: 'tenant-1',
   reason: 'Ceiling leak during the winter storm',
@@ -63,7 +63,7 @@ describe('POST /api/v1/escrow/:leaseId/dispute', () => {
     });
     expect(notifications.notifyDisputeOpened).toHaveBeenCalledWith({
       leaseId: LEASE_ID,
-      disputeId: 'dispute-1',
+      disputeId: '00000000-0000-0000-0000-0000000000aa',
     });
   });
 
@@ -106,7 +106,7 @@ describe('GET /api/v1/escrow/:leaseId/disputes', () => {
       .set('Authorization', `Bearer ${tokenFor('tenant-1', 'tenant')}`);
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(1);
-    expect(res.body[0].id).toBe('dispute-1');
+    expect(res.body[0].id).toBe('00000000-0000-0000-0000-0000000000aa');
   });
 });
 
@@ -165,13 +165,13 @@ describe('POST /api/v1/escrow/:leaseId/disputes/:disputeId/resolve', () => {
     resolveDispute.mockResolvedValue({ ...disputeRow, status: 'resolved', tenant_share_pct: 80 });
 
     const res = await request(app)
-      .post(`/api/v1/escrow/${LEASE_ID}/disputes/dispute-1/resolve`)
+      .post(`/api/v1/escrow/${LEASE_ID}/disputes/00000000-0000-0000-0000-0000000000aa/resolve`)
       .set('Authorization', `Bearer ${tokenFor('tenant-1', 'tenant')}`)
       .send({ tenant_share_pct: 80, resolution_note: 'arbitrated' });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('resolved');
     expect(resolveDispute).toHaveBeenCalledWith({
-      disputeId: 'dispute-1',
+      disputeId: '00000000-0000-0000-0000-0000000000aa',
       tenantSharePct: 80,
       resolutionNote: 'arbitrated',
       resolvedBy: 'tenant-1',
@@ -183,7 +183,7 @@ describe('POST /api/v1/escrow/:leaseId/disputes/:disputeId/resolve', () => {
       rows: [{ ...disputeRow, lease_id: '00000000-0000-0000-0000-000000000099' }],
     });
     const res = await request(app)
-      .post(`/api/v1/escrow/${LEASE_ID}/disputes/dispute-1/resolve`)
+      .post(`/api/v1/escrow/${LEASE_ID}/disputes/00000000-0000-0000-0000-0000000000aa/resolve`)
       .set('Authorization', `Bearer ${tokenFor('tenant-1', 'tenant')}`)
       .send({ tenant_share_pct: 80 });
     expect(res.status).toBe(404);
