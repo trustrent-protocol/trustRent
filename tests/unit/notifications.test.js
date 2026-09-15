@@ -26,7 +26,11 @@ describe('notifyPaymentConfirmed', () => {
     process.env.WEBHOOK_URL = 'https://hooks.example/trustrent';
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
 
-    await notifications.notifyPaymentConfirmed({ leaseId: 'L1', txHash: 'tx', amount: '500.0000000' });
+    await notifications.notifyPaymentConfirmed({
+      leaseId: 'L1',
+      txHash: 'tx',
+      amount: '500.0000000',
+    });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
@@ -54,9 +58,7 @@ describe('notifyPaymentConfirmed', () => {
   test('logs a non-2xx webhook response without throwing', async () => {
     process.env.WEBHOOK_URL = 'https://hooks.example/trustrent';
     fetchMock.mockResolvedValue({ ok: false, status: 500 });
-    await expect(
-      notifications.notifyLeaseActivated({ leaseId: 'L1' }),
-    ).resolves.toBeUndefined();
+    await expect(notifications.notifyLeaseActivated({ leaseId: 'L1' })).resolves.toBeUndefined();
   });
 
   test('exposes the remaining notification channels', async () => {
@@ -64,7 +66,12 @@ describe('notifyPaymentConfirmed', () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
 
     await notifications.notifyDisputeOpened({ leaseId: 'L1', disputeId: 'D1' });
-    await notifications.notifyDepositReleased({ leaseId: 'L1', tenant: 'T', landlord: 'L', kind: 'split' });
+    await notifications.notifyDepositReleased({
+      leaseId: 'L1',
+      tenant: 'T',
+      landlord: 'L',
+      kind: 'split',
+    });
 
     const events = fetchMock.mock.calls.map(([, init]) => JSON.parse(init.body).event);
     expect(events).toEqual(['dispute.opened', 'deposit.released']);

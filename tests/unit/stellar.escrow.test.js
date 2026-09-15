@@ -77,9 +77,7 @@ describe('createEscrow', () => {
     const leaseData = data.find((op) => op.name === 'trustrent:lease');
     expect(leaseData).toBeDefined();
     expect(Buffer.from(leaseData.value).toString('utf8')).toBe('sha256:abc');
-    expect(data.map((op) => op.source)).toEqual(
-      expect.arrayContaining([result.escrowPublicKey]),
-    );
+    expect(data.map((op) => op.source)).toEqual(expect.arrayContaining([result.escrowPublicKey]));
 
     expect(result.txHash).toBe('escrow-tx');
   });

@@ -37,9 +37,7 @@ describe('CORS allow-list', () => {
   test('rejects origins not on the allow-list', async () => {
     process.env.CORS_ORIGINS = 'https://trusted.example';
     const app = require('../../src/api/app');
-    const res = await request(app)
-      .get('/health')
-      .set('Origin', 'https://evil.example');
+    const res = await request(app).get('/health').set('Origin', 'https://evil.example');
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/origin/i);
   });
@@ -47,9 +45,7 @@ describe('CORS allow-list', () => {
   test('allows origins on the allow-list', async () => {
     process.env.CORS_ORIGINS = 'https://trusted.example';
     const app = require('../../src/api/app');
-    const res = await request(app)
-      .get('/health')
-      .set('Origin', 'https://trusted.example');
+    const res = await request(app).get('/health').set('Origin', 'https://trusted.example');
     expect(res.status).toBe(200);
     expect(res.headers['access-control-allow-origin']).toBe('https://trusted.example');
   });
@@ -57,9 +53,7 @@ describe('CORS allow-list', () => {
   test('denies browser origins when no allow-list is configured', async () => {
     delete process.env.CORS_ORIGINS;
     const app = require('../../src/api/app');
-    const res = await request(app)
-      .get('/health')
-      .set('Origin', 'https://untrusted.example');
+    const res = await request(app).get('/health').set('Origin', 'https://untrusted.example');
     expect(res.status).toBe(403);
   });
 

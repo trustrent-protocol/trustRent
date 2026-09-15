@@ -69,26 +69,27 @@ router.get(
   validate,
   authorizeLease,
   async (req, res, next) => {
-  try {
-    const lease = req.lease;
-    if (!lease.escrow_account_pk) {
-      return res.status(404).json({ error: 'No escrow account for this lease' });
+    try {
+      const lease = req.lease;
+      if (!lease.escrow_account_pk) {
+        return res.status(404).json({ error: 'No escrow account for this lease' });
+      }
+
+      const { server } = require('../../stellar/client');
+      const account = await server.loadAccount(lease.escrow_account_pk);
+      const usdcBalance = account.balances.find((b) => b.asset_code === 'USDC');
+
+      res.json({
+        escrow_account_pk: lease.escrow_account_pk,
+        balance: usdcBalance ? usdcBalance.balance : '0',
+        asset: 'USDC',
+        signers: account.signers,
+      });
+    } catch (err) {
+      next(err);
     }
-
-    const { server } = require('../../stellar/client');
-    const account = await server.loadAccount(lease.escrow_account_pk);
-    const usdcBalance = account.balances.find((b) => b.asset_code === 'USDC');
-
-    res.json({
-      escrow_account_pk: lease.escrow_account_pk,
-      balance: usdcBalance ? usdcBalance.balance : '0',
-      asset: 'USDC',
-      signers: account.signers,
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+  },
+);
 
 // POST /api/v1/escrow/:leaseId/dispute  — open a deposit dispute
 router.post(

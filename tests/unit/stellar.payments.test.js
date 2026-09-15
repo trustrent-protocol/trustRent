@@ -26,12 +26,8 @@ const LANDLORD = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 8)).publicKey();
 const AGENT = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 9)).publicKey();
 
 function mockLedger() {
-  server.loadAccount.mockResolvedValue(
-    new Account(TENANT.publicKey(), '123456'),
-  );
-  server.submitTransaction.mockImplementation(() =>
-    Promise.resolve({ hash: 'abc', ledger: 42 }),
-  );
+  server.loadAccount.mockResolvedValue(new Account(TENANT.publicKey(), '123456'));
+  server.submitTransaction.mockImplementation(() => Promise.resolve({ hash: 'abc', ledger: 42 }));
 }
 
 beforeEach(() => {

@@ -50,10 +50,9 @@ async function loadWatchList() {
 
 /** Read the persisted Horizon cursor for an account, defaulting to 'now'. */
 async function loadCursor(accountId) {
-  const { rows } = await pool.query(
-    'SELECT cursor FROM indexer_cursors WHERE account_id = $1',
-    [accountId],
-  );
+  const { rows } = await pool.query('SELECT cursor FROM indexer_cursors WHERE account_id = $1', [
+    accountId,
+  ]);
   return rows[0] ? rows[0].cursor : 'now';
 }
 
@@ -104,7 +103,9 @@ async function indexPayment({ payment, accountId, leases }) {
 
   const asset = payment.asset_code || '';
   if (!supportedAssets().includes(asset)) {
-    console.warn(`[indexer] Ignoring payment ${payment.transaction_hash}: unsupported asset ${asset}`);
+    console.warn(
+      `[indexer] Ignoring payment ${payment.transaction_hash}: unsupported asset ${asset}`,
+    );
     return 'skipped';
   }
 
@@ -184,7 +185,9 @@ async function watchAccount({ account, leases }, attempt = 0) {
           const outcome = await indexPayment({ payment, accountId: account, leases });
           await saveCursor(account, payment.paging_token);
           if (outcome === 'indexed') {
-            console.log(`[indexer] Indexed payment ${payment.transaction_hash} from cursor ${cursor}`);
+            console.log(
+              `[indexer] Indexed payment ${payment.transaction_hash} from cursor ${cursor}`,
+            );
           }
         } catch (err) {
           console.error(`[indexer] Failed recording ${payment.transaction_hash}:`, err.message);

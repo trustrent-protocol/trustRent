@@ -47,19 +47,21 @@ describe('matchLease', () => {
   });
 
   test('returns null for payments without a trustrent stamp', () => {
-    expect(matchLease(usdcPayment({ memo: { type: 'text', value: 'rent jan' } }), leases)).toBeNull();
+    expect(
+      matchLease(usdcPayment({ memo: { type: 'text', value: 'rent jan' } }), leases),
+    ).toBeNull();
     expect(matchLease(usdcPayment({ memo: null }), leases)).toBeNull();
   });
 
   test('returns null for an unknown tag', () => {
-    expect(matchLease(usdcPayment({ memo: { type: 'text', value: 'trustrent:ffffffffffff' } }), leases)).toBeNull();
+    expect(
+      matchLease(usdcPayment({ memo: { type: 'text', value: 'trustrent:ffffffffffff' } }), leases),
+    ).toBeNull();
   });
 });
 
 describe('indexPayment', () => {
-  const leases = [
-    { lease_id: LEASE_A, rent_amount: '500.00', tag: '0000000000aa' },
-  ];
+  const leases = [{ lease_id: LEASE_A, rent_amount: '500.00', tag: '0000000000aa' }];
 
   test('indexes a matching payment and notifies', async () => {
     pool.query
@@ -79,9 +81,9 @@ describe('indexPayment', () => {
   });
 
   test('skips non-payment operations', async () => {
-    expect(await indexPayment({ payment: { type: 'create_account' }, accountId: 'A', leases })).toBe(
-      'skipped',
-    );
+    expect(
+      await indexPayment({ payment: { type: 'create_account' }, accountId: 'A', leases }),
+    ).toBe('skipped');
     expect(pool.query).not.toHaveBeenCalled();
   });
 
@@ -122,8 +124,14 @@ describe('loadWatchList', () => {
     });
     const watchList = await loadWatchList();
     expect(watchList).toEqual([
-      { account: 'GLANDLORD', leases: [{ lease_id: LEASE_A, rent_amount: '500.00', tag: '0000000000aa' }] },
-      { account: 'GAGENT', leases: [{ lease_id: LEASE_A, rent_amount: '500.00', tag: '0000000000aa' }] },
+      {
+        account: 'GLANDLORD',
+        leases: [{ lease_id: LEASE_A, rent_amount: '500.00', tag: '0000000000aa' }],
+      },
+      {
+        account: 'GAGENT',
+        leases: [{ lease_id: LEASE_A, rent_amount: '500.00', tag: '0000000000aa' }],
+      },
     ]);
   });
 });

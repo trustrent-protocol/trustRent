@@ -44,9 +44,7 @@ app.use(express.json({ limit: '100kb' }));
 // Global safety net and request instrumentation: every request gets an id for
 // log correlation and a lightweight access log line.
 app.use((req, res, next) => {
-  req.id =
-    req.headers['x-request-id'] ||
-    crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  req.id = req.headers['x-request-id'] || crypto.randomUUID().replace(/-/g, '').slice(0, 16);
   res.setHeader('X-Request-Id', req.id);
   res.locals.startedAt = Date.now();
   res.on('finish', () => {

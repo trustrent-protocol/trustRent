@@ -170,48 +170,44 @@ router.get(
   param('leaseId').isUUID(),
   validate,
   async (req, res, next) => {
-  try {
-    const { rows } = await Lease.findById(req.params.leaseId);
-    const lease = rows[0];
-    if (!lease) return res.status(404).json({ error: 'Lease not found' });
+    try {
+      const { rows } = await Lease.findById(req.params.leaseId);
+      const lease = rows[0];
+      if (!lease) return res.status(404).json({ error: 'Lease not found' });
 
-    const involved = [lease.landlord_id, lease.tenant_id, lease.agent_id]
-      .filter(Boolean)
-      .map(String);
-    if (!involved.includes(String(req.user.id))) {
-      return res.status(403).json({ error: 'You are not a party to this lease' });
+      const involved = [lease.landlord_id, lease.tenant_id, lease.agent_id]
+        .filter(Boolean)
+        .map(String);
+      if (!involved.includes(String(req.user.id))) {
+        return res.status(403).json({ error: 'You are not a party to this lease' });
+      }
+      if (!lease.starts_at || !lease.duration_months) {
+        return res
+          .status(422)
+          .json({ error: 'Lease is missing schedule parameters (starts_at, duration_months)' });
+      }
+
+      const { rows: payments } = await Payment.findByLease(lease.id);
+      const paidPeriods = payments
+        .filter((p) => p.status === 'confirmed' && p.settled_at)
+        .map((p) => new Date(p.settled_at).toISOString().slice(0, 10));
+
+      const schedule = buildPaymentSchedule({
+        startsAt: String(lease.starts_at).slice(0, 10),
+        durationMonths: lease.duration_months,
+        rentAmount: lease.rent_amount,
+        rentDueDay: lease.rent_due_day,
+      });
+
+      res.json(summarizeSchedule(schedule, { paidPeriods }));
+    } catch (err) {
+      next(err);
     }
-    if (!lease.starts_at || !lease.duration_months) {
-      return res
-        .status(422)
-        .json({ error: 'Lease is missing schedule parameters (starts_at, duration_months)' });
-    }
-
-    const { rows: payments } = await Payment.findByLease(lease.id);
-    const paidPeriods = payments
-      .filter((p) => p.status === 'confirmed' && p.settled_at)
-      .map((p) => new Date(p.settled_at).toISOString().slice(0, 10));
-
-    const schedule = buildPaymentSchedule({
-      startsAt: String(lease.starts_at).slice(0, 10),
-      durationMonths: lease.duration_months,
-      rentAmount: lease.rent_amount,
-      rentDueDay: lease.rent_due_day,
-    });
-
-    res.json(summarizeSchedule(schedule, { paidPeriods }));
-  } catch (err) {
-    next(err);
-  }
-});
+  },
+);
 
 // GET /api/v1/payments/:leaseId
-router.get(
-  '/:leaseId',
-  auth,
-  param('leaseId').isUUID(),
-  validate,
-  async (req, res, next) => {
+router.get('/:leaseId', auth, param('leaseId').isUUID(), validate, async (req, res, next) => {
   try {
     const { rows } = await Lease.findById(req.params.leaseId);
     const lease = rows[0];

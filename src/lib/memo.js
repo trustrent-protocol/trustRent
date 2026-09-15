@@ -45,4 +45,10 @@ function buildLeaseMemo(leaseId, extra) {
   return truncateToBytes(`${prefix} ${extra}`);
 }
 
-module.exports = { truncateToBytes, buildLeaseMemo, leaseMemoTag, TRUSTRENT_PREFIX, MAX_MEMO_BYTES };
+module.exports = {
+  truncateToBytes,
+  buildLeaseMemo,
+  leaseMemoTag,
+  TRUSTRENT_PREFIX,
+  MAX_MEMO_BYTES,
+};
