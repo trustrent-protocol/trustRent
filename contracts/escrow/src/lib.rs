@@ -53,6 +53,8 @@ impl EscrowContract {
             panic!("already initialised");
         }
 
+        assert!(deposit_amount > 0, "deposit must be positive");
+
         tenant.require_auth();
 
         // Pull deposit from tenant into contract
@@ -98,6 +100,7 @@ impl EscrowContract {
         let deposit: i128 = env.storage().instance().get(&DataKey::DepositAmount).unwrap();
 
         assert!(tenant_amount + landlord_amount == deposit, "amounts must sum to deposit");
+        assert!(tenant_amount >= 0 && landlord_amount >= 0, "amounts must be non-negative");
 
         tenant.require_auth();
         landlord.require_auth();
@@ -116,12 +119,18 @@ impl EscrowContract {
         env.storage().instance().set(&DataKey::State, &EscrowState::Released);
     }
 
-    /// Open a dispute. Either party can call this.
-    pub fn dispute(env: Env) {
+    /// Open a dispute. Only the tenant or the landlord may call this.
+    pub fn dispute(env: Env, caller: Address) {
         Self::assert_state(&env, EscrowState::Active);
 
         let tenant: Address = env.storage().instance().get(&DataKey::Tenant).unwrap();
         let landlord: Address = env.storage().instance().get(&DataKey::Landlord).unwrap();
+
+        assert!(
+            caller == tenant || caller == landlord,
+            "only the tenant or landlord can open a dispute"
+        );
+        caller.require_auth();
 
         env.storage().instance().set(&DataKey::State, &EscrowState::Disputed);
 
@@ -141,6 +150,7 @@ impl EscrowContract {
         let deposit: i128 = env.storage().instance().get(&DataKey::DepositAmount).unwrap();
 
         assert!(tenant_amount + landlord_amount == deposit, "amounts must sum to deposit");
+        assert!(tenant_amount >= 0 && landlord_amount >= 0, "amounts must be non-negative");
 
         let token_id: Address = env.storage().instance().get(&DataKey::TokenId).unwrap();
         let client = token::Client::new(&env, &token_id);
@@ -199,11 +209,14 @@ impl EscrowContract {
 
 #[cfg(test)]
 mod tests {
+    extern crate alloc;
+    use alloc::vec::Vec as StdVec;
     use super::*;
     use soroban_sdk::{
-        testutils::{Address as _},
+        symbol_short,
+        testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation},
         token::{Client as TokenClient, StellarAssetClient},
-        Env, String,
+        Env, IntoVal, String,
     };
 
     fn setup() -> (Env, Address, Address, Address, Address, EscrowContractClient<'static>) {
@@ -237,7 +250,7 @@ mod tests {
 
     #[test]
     fn test_initialize_locks_deposit() {
-        let (env, _tenant, _landlord, _arbitrator, _token_id, client) = setup();
+        let (_env, _tenant, _landlord, _arbitrator, _token_id, client) = setup();
         assert_eq!(client.state(), EscrowState::Active);
         assert_eq!(client.balance(), 1000_0000000);
     }
@@ -269,12 +282,108 @@ mod tests {
     #[test]
     fn test_arbitrate_resolves_dispute() {
         let (env, tenant, landlord, _arbitrator, token_id, client) = setup();
-        client.dispute();
+        client.dispute(&tenant);
         assert_eq!(client.state(), EscrowState::Disputed);
         client.arbitrate(&600_0000000, &400_0000000);
         assert_eq!(client.state(), EscrowState::Released);
         assert_eq!(TokenClient::new(&env, &token_id).balance(&tenant), 1600_0000000);
         assert_eq!(TokenClient::new(&env, &token_id).balance(&landlord), 400_0000000);
+    }
+
+    #[test]
+    #[should_panic(expected = "only the tenant or landlord can open a dispute")]
+    fn test_dispute_rejects_non_party() {
+        let (_env, _tenant, _landlord, _arbitrator, _token_id, client) = setup();
+        let stranger = Address::generate(&_env);
+        client.dispute(&stranger);
+    }
+
+    #[test]
+    fn test_dispute_authenticates_the_caller() {
+        // Even with all auths mocked, the authorization tree must record that
+        // the caller (here the landlord) authorized the dispute. Without the
+        // `caller.require_auth()` guard this assertion fails, so a contract
+        // regression is caught even though mock_auths would otherwise "pass".
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let tenant = Address::generate(&env);
+        let landlord = Address::generate(&env);
+        let arbitrator = Address::generate(&env);
+        let token_id = env.register_stellar_asset_contract_v2(landlord.clone()).address();
+        let token_admin = StellarAssetClient::new(&env, &token_id);
+        token_admin.mint(&tenant, &2000_0000000);
+
+        let contract_id = env.register(EscrowContract, ());
+        let client = EscrowContractClient::new(&env, &contract_id);
+
+        client.initialize(
+            &tenant,
+            &landlord,
+            &arbitrator,
+            &token_id,
+            &1000_0000000,
+            &String::from_str(&env, "sha256:abc123"),
+            &(env.ledger().timestamp() + 86400 * 365),
+        );
+
+        client.dispute(&landlord);
+
+        assert_eq!(
+            env.auths(),
+            [(
+                landlord.clone(),
+                AuthorizedInvocation {
+                    function: AuthorizedFunction::Contract((
+                        contract_id.clone(),
+                        symbol_short!("dispute"),
+                        (landlord.clone(),).into_val(&env),
+                    )),
+                    sub_invocations: StdVec::new(),
+                },
+            )]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "amounts must be non-negative")]
+    fn test_split_release_rejects_negative_amounts() {
+        let (_env, _tenant, _landlord, _arbitrator, _token_id, client) = setup();
+        // Sums to the deposit but would send negative units if unvalidated.
+        client.release_split(&1100_0000000, &-100_0000000);
+    }
+
+    #[test]
+    #[should_panic(expected = "amounts must be non-negative")]
+    fn test_arbitrate_rejects_negative_amounts() {
+        let (_env, tenant, _landlord, _arbitrator, _token_id, client) = setup();
+        client.dispute(&tenant);
+        client.arbitrate(&-100_0000000, &1100_0000000);
+    }
+
+    #[test]
+    #[should_panic(expected = "deposit must be positive")]
+    fn test_cannot_initialize_zero_deposit() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let tenant = Address::generate(&env);
+        let landlord = Address::generate(&env);
+        let arbitrator = Address::generate(&env);
+        let token_id = env
+            .register_stellar_asset_contract_v2(landlord.clone())
+            .address();
+
+        let contract_id = env.register(EscrowContract, ());
+        let client = EscrowContractClient::new(&env, &contract_id);
+        client.initialize(
+            &tenant,
+            &landlord,
+            &arbitrator,
+            &token_id,
+            &0,
+            &String::from_str(&env, "sha256:abc"),
+            &9999999999,
+        );
     }
 
     #[test]

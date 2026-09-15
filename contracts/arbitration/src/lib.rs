@@ -42,6 +42,7 @@ impl ArbitrationContract {
             panic!("already initialised");
         }
         assert!(panel.len() >= 3, "panel must have at least 3 arbitrators");
+        assert!(deposit > 0, "deposit must be positive");
         env.storage().instance().set(&DataKey::Panel, &panel);
         env.storage().instance().set(&DataKey::Deposit, &deposit);
         env.storage().instance().set(&DataKey::LeaseId, &lease_id);
@@ -62,6 +63,7 @@ impl ArbitrationContract {
 
         let deposit: i128 = env.storage().instance().get(&DataKey::Deposit).unwrap();
         assert!(tenant_amount + landlord_amount == deposit, "amounts must sum to deposit");
+        assert!(tenant_amount >= 0 && landlord_amount >= 0, "amounts must be non-negative");
 
         let mut votes: Map<Address, (i128, i128)> =
             env.storage().instance().get(&DataKey::Votes).unwrap();
@@ -126,7 +128,7 @@ mod tests {
     use super::*;
     use soroban_sdk::{testutils::Address as _, vec, Env, String};
 
-    fn setup_panel(env: &Env) -> (Vec<Address>, ArbitrationContractClient) {
+    fn setup_panel(env: &Env) -> (Vec<Address>, ArbitrationContractClient<'_>) {
         let a1 = Address::generate(env);
         let a2 = Address::generate(env);
         let a3 = Address::generate(env);
@@ -186,5 +188,35 @@ mod tests {
         let (panel, client) = setup_panel(&env);
 
         client.vote(&panel.get(0).unwrap(), &500_0000000, &200_0000000);
+    }
+
+    #[test]
+    #[should_panic(expected = "amounts must be non-negative")]
+    fn test_negative_split_rejected() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (panel, client) = setup_panel(&env);
+
+        // Sums to the deposit but would record a negative distribution.
+        client.vote(&panel.get(0).unwrap(), &1100_0000000, &-100_0000000);
+    }
+
+    #[test]
+    #[should_panic(expected = "deposit must be positive")]
+    fn test_cannot_initialize_zero_deposit() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let a1 = Address::generate(&env);
+        let a2 = Address::generate(&env);
+        let a3 = Address::generate(&env);
+        let panel = vec![&env, a1, a2, a3];
+
+        let contract_id = env.register(ArbitrationContract, ());
+        let client = ArbitrationContractClient::new(&env, &contract_id);
+        client.initialize(
+            &panel,
+            &0,
+            &String::from_str(&env, "lease_abc123"),
+        );
     }
 }

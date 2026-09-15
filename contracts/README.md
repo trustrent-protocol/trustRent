@@ -12,9 +12,9 @@ Replaces the native multi-sig escrow with a programmable Soroban contract.
 |---|---|
 | `initialize` | Lock deposit, set tenant/landlord/arbitrator, anchor lease hash |
 | `release` | Full deposit return to tenant (tenant + landlord auth) |
-| `release_split` | Partial deduction agreed by both parties |
-| `dispute` | Either party opens a dispute |
-| `arbitrate` | Arbitrator resolves dispute with a split decision |
+| `release_split` | Partial deduction agreed by both parties (non-negative amounts) |
+| `dispute` | Tenant or landlord opens a dispute (caller must authenticate) |
+| `arbitrate` | Arbitrator resolves dispute with a split decision (non-negative amounts) |
 | `clawback` | Landlord reclaims deposit on proven damage (arbitrator co-signs) |
 | `state` | Read current escrow state |
 | `balance` | Read USDC balance held in contract |
@@ -59,7 +59,7 @@ stellar contract deploy \
 
 | Contract | Tests | Testnet deploy |
 |---|---|---|
-| `escrow` | ✅ 6 passing | Pending |
-| `arbitration` | ✅ 4 passing | Pending |
+| `escrow` | ✅ 11 passing | Pending |
+| `arbitration` | ✅ 6 passing | Pending |
 
 These contracts are on the v0.4 roadmap. The current production escrow uses Stellar native multi-sig (`src/stellar/escrow.js`).
